@@ -20,14 +20,21 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Kestrel to listen on HTTP:5000 only (disable HTTPS to avoid dev certificate issues)
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(5000); // HTTP only
+});
+
 // ===== CONFIGURATION =====
 var jwtSettings = builder.Configuration.GetSection("Jwt");
-var secretKey = jwtSettings["SecretKey"] ?? Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "your_super_secret_jwt_key_here_min_32_characters";
-var issuer = jwtSettings["Issuer"] ?? Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "CPTMBackend";
-var audience = jwtSettings["Audience"] ?? Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "CPTMApp";
+var secretKey = jwtSettings["SecretKey"] ?? "your_super_secret_jwt_key_here_min_32_characters";
+var issuer = jwtSettings["Issuer"] ?? "CPTMBackend";
+var audience = jwtSettings["Audience"] ?? "CPTMApp";
 
 // ===== DATABASE CONFIGURATION =====
 var connectionString = ResolveConnectionString(builder.Configuration);
@@ -116,7 +123,36 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 // ===== SWAGGER CONFIGURATION =====
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "CPTM API", Version = "v1" });
+
+    // JWT Authentication for Swagger
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Insira o token JWT desta forma: Bearer {seu_token}"
+    });
+
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
@@ -173,18 +209,54 @@ using (var scope = app.Services.CreateScope())
 }
 
 // ===== MIDDLEWARE =====
-if (app.Environment.IsDevelopment())
+// Always enable Swagger/UI (served at root) for easier local/dev access
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "CPTM API v1");
+    c.RoutePrefix = string.Empty; // serve UI at http://<host>/: root
+});
 
-app.UseHttpsRedirection();
+// Do not force HTTPS redirection in local/dev to avoid redirecting to unavailable HTTPS port
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Global exception logging middleware to capture errors (especially for Swagger JSON generation)
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        // Log exception
+        var logger = app.Services.GetService(typeof(ILogger<Program>)) as ILogger<Program>;
+        if (logger != null)
+        {
+            logger.LogError(ex, "Unhandled exception processing request {Path}", context.Request.Path);
+        }
+        else
+        {
+            Console.WriteLine(ex.ToString());
+        }
+
+        // If request is for swagger JSON, return exception details to help debugging
+        if (context.Request.Path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = 500;
+            context.Response.ContentType = "text/plain";
+            await context.Response.WriteAsync(ex.ToString());
+            return;
+        }
+
+        // Re-throw for other handlers (will be caught by default handlers)
+        throw;
+    }
+});
 
 app.Run();
 
@@ -195,25 +267,6 @@ app.Run();
 /// </summary>
 static string ResolveConnectionString(IConfiguration configuration)
 {
-    var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
-    
-    // Try to get from environment variables first (Docker)
-    var host = Environment.GetEnvironmentVariable("ORACLE_HOST") ?? "localhost";
-    var port = Environment.GetEnvironmentVariable("ORACLE_PORT") ?? "1521";
-    var sid = Environment.GetEnvironmentVariable("ORACLE_SID") ?? "XEPDB1";
-    var user = Environment.GetEnvironmentVariable("ORACLE_USER") ?? "CPTM";
-    var password = Environment.GetEnvironmentVariable("ORACLE_PASSWORD") ?? "root";
-
-    var envConnectionString = $"Data Source={host}:{port}/{sid};User ID={user};Password={password};";
-
-    // If env vars set, use them
-    if (host != "localhost" || user != "CPTM")
-    {
-        Console.WriteLine("?? Using Oracle connection from environment variables");
-        return envConnectionString;
-    }
-
-    // Otherwise use from appsettings
     var configConnectionString = configuration.GetConnectionString("LocalConnection");
     if (!string.IsNullOrEmpty(configConnectionString))
     {
@@ -221,9 +274,8 @@ static string ResolveConnectionString(IConfiguration configuration)
         return configConnectionString;
     }
 
-    // Fallback to environment variables
-    Console.WriteLine("?? Using Oracle connection from environment variables (fallback)");
-    return envConnectionString;
+    Console.WriteLine("?? Using Default Oracle connection");
+    return "Data Source=localhost:1521/XEPDB1;User ID=CPTM;Password=root;";
 }
 
 /// <summary>
