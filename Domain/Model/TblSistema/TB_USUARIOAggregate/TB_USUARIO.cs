@@ -62,5 +62,26 @@ namespace CPTMBack.Domain.Model.TblSistema.TB_USUARIOAggregate
             this.dtCadastro = dtCadastro ?? DateTime.Now;
             this.dtAtualizacao = dtAtualizacao ?? DateTime.Now;
         }
+
+        // ===== Public Methods =====
+
+        public void UpdatePassword(string newPasswordHash)
+        {
+            dsSenhaHash = newPasswordHash;
+            dtAtualizacao = DateTime.Now;
+        }
+
+        public void SetActive(bool isActive)
+        {
+            flAtivo = isActive;
+            dtAtualizacao = DateTime.Now;
+        }
+
+        public void UpdateInfo(string nmUsuario, string? dsEmail)
+        {
+            this.nmUsuario = nmUsuario;
+            this.dsEmail = dsEmail;
+            dtAtualizacao = DateTime.Now;
+        }
     }
 }

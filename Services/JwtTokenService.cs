@@ -1,51 +1,60 @@
-﻿using System.Security.Claims;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
-using System.IdentityModel.Tokens.Jwt;
-using Microsoft.IdentityModel.Tokens;
 using CPTMBack.Domain.Model.TblSistema.TB_USUARIOAggregate;
+using Microsoft.IdentityModel.Tokens;
 
 namespace CPTMBack.Services
 {
-    public class JwtTokenService
+    public interface IJwtTokenService
     {
-        private readonly IConfiguration _configuration;
+        string GenerateToken(TB_USUARIO usuario);
+    }
 
-        public JwtTokenService(IConfiguration configuration)
+    public class JwtTokenService : IJwtTokenService
+    {
+        private readonly string _secretKey;
+        private readonly string _issuer;
+        private readonly string _audience;
+        private const int ExpirationMinutes = 60;
+
+        public JwtTokenService(string secretKey, string issuer, string audience)
         {
-            _configuration = configuration;
+            _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey));
+            _issuer = issuer ?? throw new ArgumentNullException(nameof(issuer));
+            _audience = audience ?? throw new ArgumentNullException(nameof(audience));
         }
 
-        public (string token, DateTime expiresAtUtc) GenerateToken(TB_USUARIO usuario)
+        public string GenerateToken(TB_USUARIO usuario)
         {
-            var issuer = _configuration["Jwt:Issuer"] ?? "cptm-api";
-            var audience = _configuration["Jwt:Audience"] ?? "cptm-web";
-            var secret = _configuration["Jwt:Secret"] ?? "MinhaChaveSecretaMuitoForteESegura12345";
-            var expiresMinutes = int.TryParse(_configuration["Jwt:ExpiresMinutes"], out var parsedMinutes)
-                ? parsedMinutes
-                : 120;
+            if (usuario == null)
+                throw new ArgumentNullException(nameof(usuario));
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
+            var key = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(_secretKey));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var expiresAtUtc = DateTime.UtcNow.AddMinutes(expiresMinutes);
+            var expiresAtUtc = DateTime.UtcNow.AddMinutes(ExpirationMinutes);
 
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, usuario.dsLogin),
-                new Claim(ClaimTypes.Name, usuario.nmUsuario),
+                new Claim("sub", usuario.idUsuario.ToString()),
                 new Claim(ClaimTypes.NameIdentifier, usuario.idUsuario.ToString()),
+                new Claim(ClaimTypes.Name, usuario.nmUsuario),
                 new Claim(ClaimTypes.Email, usuario.dsEmail ?? string.Empty),
+                new Claim("dsLogin", usuario.dsLogin),
+                new Claim("idPerfil", usuario.idPerfil.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
             var token = new JwtSecurityToken(
-                issuer: issuer,
-                audience: audience,
+                issuer: _issuer,
+                audience: _audience,
                 claims: claims,
                 notBefore: DateTime.UtcNow,
                 expires: expiresAtUtc,
-                signingCredentials: credentials);
+                signingCredentials: credentials
+            );
 
-            return (new JwtSecurityTokenHandler().WriteToken(token), expiresAtUtc);
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
 }

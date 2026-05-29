@@ -1,0 +1,80 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# VS Code
+.vscode
+.vscode/**
+
+# Visual Studio
+.vs
+.vs/**
+obj
+obj/**
+bin
+bin/**
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local appsettings
+appsettings.json
+appsettings.*.json
+.env
+.env.local
+
+# Logs
+logs
+logs/**
+*.log
+
+# Dependencies
+node_modules
+node_modules/**
+
+# Test Results
+TestResults
+TestResults/**
+*.trx
+
+# Temporary files
+tmp
+tmp/**
+temp
+temp/**
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea
+.idea/**
+*.swp
+*.swo
+
+# Docker files (don't need in image)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Database backups
+*.db
+*.sqlite
+*.sqlite3
+
+# Configuration backups
+*.bak
+*.backup
+
+# README and docs (optional to exclude)
+# *.md
+# README.md
+
+# README specific to docker
+init-db.sql
