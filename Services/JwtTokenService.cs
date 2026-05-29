@@ -42,6 +42,7 @@ namespace CPTMBack.Services
                 new Claim(ClaimTypes.Email, usuario.dsEmail ?? string.Empty),
                 new Claim("dsLogin", usuario.dsLogin),
                 new Claim("idPerfil", usuario.idPerfil.ToString()),
+                new Claim(ClaimTypes.Role, usuario.idPerfil == 1 ? "admin" : "operator"),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
