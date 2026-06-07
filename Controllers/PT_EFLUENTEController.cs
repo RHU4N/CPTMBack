@@ -22,235 +22,144 @@ namespace CPTMBack.Controllers
             _logger = logger;
         }
 
-        /// <summary>
-        /// Get all efluentes
-        /// </summary>
         [HttpGet]
         public IActionResult GetAll()
         {
             try
             {
                 var efluentes = _efluenteRepository.GetAll();
-
-                if (!efluentes.Any())
-                {
-                    return Ok(new { dados = efluentes, total = 0 });
-                }
-
-                var dtos = efluentes.Select(e => MapToDTO(e)).ToList();
-
-                _logger.LogInformation($"? Retrieved {dtos.Count} efluentes");
-
+                var dtos = efluentes.Select(MapToDTO).ToList();
                 return Ok(new { dados = dtos, total = dtos.Count });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"? Error retrieving efluentes: {ex.Message}");
+                _logger.LogError("Erro ao recuperar efluentes: {Message}", ex.Message);
                 return BadRequest(new { mensagem = "Erro ao recuperar efluentes", erro = ex.Message });
             }
         }
 
-        /// <summary>
-        /// Get efluente by ID
-        /// </summary>
         [HttpGet("{id}")]
         public IActionResult GetById(string id)
         {
             try
             {
                 var efluente = _efluenteRepository.Get(id);
-
                 if (efluente == null)
-                {
-                    return NotFound(new { mensagem = "Efluente n„o encontrado" });
-                }
+                    return NotFound(new { mensagem = "Efluente n√£o encontrado" });
 
-                var dto = MapToDTO(efluente);
-
-                _logger.LogInformation($"? Retrieved efluente: {id}");
-
-                return Ok(dto);
+                return Ok(MapToDTO(efluente));
             }
             catch (Exception ex)
             {
-                _logger.LogError($"? Error retrieving efluente: {ex.Message}");
+                _logger.LogError("Erro ao recuperar efluente {Id}: {Message}", id, ex.Message);
                 return BadRequest(new { mensagem = "Erro ao recuperar efluente", erro = ex.Message });
             }
         }
 
-        /// <summary>
-        /// Search efluentes by status
-        /// </summary>
-        [HttpGet("search/by-status/{idStatusDesvio}")]
-        public IActionResult GetByStatus(int idStatusDesvio)
-        {
-            try
-            {
-                var efluentes = _efluenteRepository.GetAll()
-                    .Where(e => e.idStatusDesvio == idStatusDesvio)
-                    .ToList();
-
-                var dtos = efluentes.Select(e => MapToDTO(e)).ToList();
-
-                _logger.LogInformation($"? Retrieved {dtos.Count} efluentes with status {idStatusDesvio}");
-
-                return Ok(new { dados = dtos, total = dtos.Count });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"? Error searching by status: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao buscar por status", erro = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Search efluentes by municipality
-        /// </summary>
-        [HttpGet("search/by-municipality/{idMunicipio}")]
-        public IActionResult GetByMunicipality(int idMunicipio)
-        {
-            try
-            {
-                var efluentes = _efluenteRepository.GetAll()
-                    .Where(e => e.idMunicipio == idMunicipio)
-                    .ToList();
-
-                var dtos = efluentes.Select(e => MapToDTO(e)).ToList();
-
-                _logger.LogInformation($"? Retrieved {dtos.Count} efluentes in municipality {idMunicipio}");
-
-                return Ok(new { dados = dtos, total = dtos.Count });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"? Error searching by municipality: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao buscar por municÌpio", erro = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Create new efluente
-        /// </summary>
         [HttpPost]
         public IActionResult Create([FromBody] PT_EFLUENTEViewModel model)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(model.pkCdMeioAmbienteCptm))
-                {
-                    return BadRequest(new { mensagem = "CÛdigo do meio ambiente È obrigatÛrio" });
-                }
+                    return BadRequest(new { mensagem = "Chave prim√°ria √© obrigat√≥ria" });
 
-                // Check if already exists
                 var existing = _efluenteRepository.Get(model.pkCdMeioAmbienteCptm);
                 if (existing != null)
-                {
-                    return Conflict(new { mensagem = "Efluente j· existe" });
-                }
+                    return Conflict(new { mensagem = "Registro j√° existe com esta chave prim√°ria" });
 
-                var efluente = new PT_EFLUENTE(
-                    pkCdMeioAmbienteCptm: model.pkCdMeioAmbienteCptm,
-                    idDeptoCampoAmbiente: model.idDeptoCampoAmbiente,
-                    idStatusDesvio: model.idStatusDesvio,
-                    idStatusRegistro: model.idStatusRegistro,
-                    idMunicipio: model.idMunicipio,
-                    idLinha: model.idLinha,
-                    idVia: model.idVia,
-                    idTrecho: model.idTrecho,
-                    idTipoEfluente: model.idTipoEfluente,
-                    txNrElementoMonitoramento: model.txNrElementoMonitoramento,
-                    txNmElementoMonitoramento: model.txNmElementoMonitoramento,
-                    txKmPoste: model.txKmPoste,
-                    txEndereco: model.txEndereco,
-                    txCoordenadaX: model.txCoordenadaX,
-                    txCoordenadaY: model.txCoordenadaY,
-                    dtRegistro: DateTime.Now,
-                    dtAtualizacao: DateTime.Now,
-                    txNomeTecnicoResponsavel: model.txNomeTecnicoResponsavel,
-                    txEmailTecnicoResponsavel: model.txEmailTecnicoResponsavel,
-                    txTelefoneTecnicoResponsavel: model.txTelefoneTecnicoResponsavel,
-                    txEmpresaContratada: model.txEmpresaContratada,
-                    txNumeroContrato: model.txNumeroContrato,
-                    txProcessoAmbiental: model.txProcessoAmbiental,
-                    txOrigemEfluente: model.txOrigemEfluente,
-                    txDestinacaoEfluente: model.txDestinacaoEfluente,
-                    txVolumeEfluente: model.txVolumeEfluente,
-                    txUnidadeVolume: model.txUnidadeVolume,
-                    txCorEfluente: model.txCorEfluente,
-                    txOdorEfluente: model.txOdorEfluente,
-                    txPh: model.txPh,
-                    txTemperatura: model.txTemperatura,
-                    txObservacao: model.txObservacao,
-                    txLinkMapa: model.txLinkMapa,
-                    txNomeFoto01: model.txNomeFoto01,
-                    txNomeFoto02: model.txNomeFoto02,
-                    txNomeFoto03: model.txNomeFoto03,
-                    txNomeFoto04: model.txNomeFoto04
-                );
-
+                var efluente = MapFromViewModel(model);
                 _efluenteRepository.Add(efluente);
 
-                _logger.LogInformation($"? Efluente created: {model.pkCdMeioAmbienteCptm}");
-
+                _logger.LogInformation("Efluente criado: {Id}", model.pkCdMeioAmbienteCptm);
                 return CreatedAtAction(nameof(GetById), new { id = model.pkCdMeioAmbienteCptm }, MapToDTO(efluente));
             }
             catch (Exception ex)
             {
-                _logger.LogError($"? Error creating efluente: {ex.Message}");
+                _logger.LogError("Erro ao criar efluente: {Message}", ex.Message);
                 return BadRequest(new { mensagem = "Erro ao criar efluente", erro = ex.Message });
             }
         }
 
-        /// <summary>
-        /// Update efluente
-        /// </summary>
         [HttpPut("{id}")]
         public IActionResult Update(string id, [FromBody] PT_EFLUENTEViewModel model)
         {
             try
             {
-                var efluente = _efluenteRepository.Get(id);
+                var existing = _efluenteRepository.Get(id);
+                if (existing == null)
+                    return NotFound(new { mensagem = "Efluente n√£o encontrado" });
 
-                if (efluente == null)
-                {
-                    return NotFound(new { mensagem = "Efluente n„o encontrado" });
-                }
-
-                // Update properties
-                efluente = new PT_EFLUENTE(
-                    pkCdMeioAmbienteCptm: efluente.pkCdMeioAmbienteCptm,
-                    idDeptoCampoAmbiente: model.idDeptoCampoAmbiente,
-                    idStatusDesvio: model.idStatusDesvio,
-                    idStatusRegistro: model.idStatusRegistro,
-                    idMunicipio: model.idMunicipio,
-                    idLinha: model.idLinha,
-                    idVia: model.idVia,
-                    idTrecho: model.idTrecho,
-                    idTipoEfluente: model.idTipoEfluente,
+                var efluente = new PT_EFLUENTE(
+                    pkCdMeioAmbienteCptm: id,
                     txNrElementoMonitoramento: model.txNrElementoMonitoramento,
                     txNmElementoMonitoramento: model.txNmElementoMonitoramento,
+                    txSiglaDeptomMeioAmbiente: model.txSiglaDeptomMeioAmbiente,
+                    txStatusDoDesvioAmbiental: model.txStatusDoDesvioAmbiental,
+                    txStatusDoRegistroNoBd: model.txStatusDoRegistroNoBd,
+                    txMunicipio: model.txMunicipio,
+                    txLinhaCptm: model.txLinhaCptm,
+                    txViaCptm: model.txViaCptm,
+                    txTrechoESentidoCptm: model.txTrechoESentidoCptm,
                     txKmPoste: model.txKmPoste,
-                    txEndereco: model.txEndereco,
-                    txCoordenadaX: model.txCoordenadaX,
-                    txCoordenadaY: model.txCoordenadaY,
-                    dtRegistro: efluente.dtRegistro,
-                    dtAtualizacao: DateTime.Now,
-                    txNomeTecnicoResponsavel: model.txNomeTecnicoResponsavel,
-                    txEmailTecnicoResponsavel: model.txEmailTecnicoResponsavel,
-                    txTelefoneTecnicoResponsavel: model.txTelefoneTecnicoResponsavel,
-                    txEmpresaContratada: model.txEmpresaContratada,
-                    txNumeroContrato: model.txNumeroContrato,
-                    txProcessoAmbiental: model.txProcessoAmbiental,
+                    txEstacaoCptm: model.txEstacaoCptm,
+                    nrLatGrauDecimalWgs84: model.nrLatGrauDecimalWgs84,
+                    nrLongGrauDecimalWgs84: model.nrLongGrauDecimalWgs84,
+                    nrLatMetrosSirgas2000: model.nrLatMetrosSirgas2000,
+                    nrLongMetrosSirgas2000: model.nrLongMetrosSirgas2000,
+                    txNmLocalEscopoContratual: model.txNmLocalEscopoContratual,
+                    txTipoDeFormulario: model.txTipoDeFormulario,
+                    dtDataEmissaoFormulario: model.dtDataEmissaoFormulario,
+                    nrNumeroDeFormulario: model.nrNumeroDeFormulario,
+                    txAutorPfDoFormulario: model.txAutorPfDoFormulario,
+                    txNaturezaDoPga: model.txNaturezaDoPga,
+                    txNomePjExecutora: model.txNomePjExecutora,
+                    txTipoAtividadeListada: model.txTipoAtividadeListada,
+                    txTipoAtividadeNListada: model.txTipoAtividadeNListada,
+                    txTipoDraListado: model.txTipoDraListado,
+                    txTipoDraNListado: model.txTipoDraNListado,
+                    txIdDra: model.txIdDra,
+                    dtValidadeDra: model.dtValidadeDra,
+                    txAnaliseCptmAprovacao: model.txAnaliseCptmAprovacao,
+                    txTipoAtividadeCptm: model.txTipoAtividadeCptm,
+                    txNmLocalAtiv: model.txNmLocalAtiv,
+                    txNmLocalAtivComplemento: model.txNmLocalAtivComplemento,
                     txOrigemEfluente: model.txOrigemEfluente,
-                    txDestinacaoEfluente: model.txDestinacaoEfluente,
-                    txVolumeEfluente: model.txVolumeEfluente,
-                    txUnidadeVolume: model.txUnidadeVolume,
-                    txCorEfluente: model.txCorEfluente,
-                    txOdorEfluente: model.txOdorEfluente,
-                    txPh: model.txPh,
-                    txTemperatura: model.txTemperatura,
-                    txObservacao: model.txObservacao,
-                    txLinkMapa: model.txLinkMapa,
+                    txFonteGeradora: model.txFonteGeradora,
+                    nrQuantidadeL: model.nrQuantidadeL,
+                    txTipoDestinacao: model.txTipoDestinacao,
+                    txTipoVeiculo: model.txTipoVeiculo,
+                    txIdVeiculo: model.txIdVeiculo,
+                    txIdGuiaRemessa: model.txIdGuiaRemessa,
+                    nrDistanciaDaViaM: model.nrDistanciaDaViaM,
+                    txOfereceRiscoSistemaCptm: model.txOfereceRiscoSistemaCptm,
+                    txProprietario: model.txProprietario,
+                    txObsCadastramento: model.txObsCadastramento,
+                    dtDataDoCadastramento: model.dtDataDoCadastramento,
+                    hrHorasDoCadastramento: model.hrHorasDoCadastramento,
+                    txAutorPjDoCadastro: model.txAutorPjDoCadastro,
+                    txAutorPfDoCadastro: model.txAutorPfDoCadastro,
+                    txNmResponsavelCadastro: model.txNmResponsavelCadastro,
+                    txRpResponsavelCadastro: model.txRpResponsavelCadastro,
+                    txDrtResponsavelCadastro: model.txDrtResponsavelCadastro,
+                    txNomePjDaContratada: model.txNomePjDaContratada,
+                    txNrContratoContratada: model.txNrContratoContratada,
+                    txNmAreaGestoraCptm: model.txNmAreaGestoraCptm,
+                    txIdAreaGestoraCptm: model.txIdAreaGestoraCptm,
+                    txSiglaAreaGestoraCptm: model.txSiglaAreaGestoraCptm,
+                    txNomePfDaRepresentante: model.txNomePfDaRepresentante,
+                    txNomePjDaSupervisora: model.txNomePjDaSupervisora,
+                    txNrContratoSupervisora: model.txNrContratoSupervisora,
+                    txNmArquivoFdcRelacionado: model.txNmArquivoFdcRelacionado,
+                    pkCdArquivoFdcRelacionado: model.pkCdArquivoFdcRelacionado,
+                    txNmArquivoRvtRelacionado: model.txNmArquivoRvtRelacionado,
+                    pkCdElementoDeMonitorRvt: model.pkCdElementoDeMonitorRvt,
+                    txNmArquivoDacRelacionado: model.txNmArquivoDacRelacionado,
+                    pkCdElementoDeMonitorDac: model.pkCdElementoDeMonitorDac,
+                    txNmArquivoCncRelacionado: model.txNmArquivoCncRelacionado,
+                    pkCdElementoDeMonitorCnc: model.pkCdElementoDeMonitorCnc,
+                    pkCdCodigoNoUltimoRra: model.pkCdCodigoNoUltimoRra,
+                    pkCdCedoc: model.pkCdCedoc,
                     txNomeFoto01: model.txNomeFoto01,
                     txNomeFoto02: model.txNomeFoto02,
                     txNomeFoto03: model.txNomeFoto03,
@@ -258,21 +167,16 @@ namespace CPTMBack.Controllers
                 );
 
                 _efluenteRepository.Update(efluente);
-
-                _logger.LogInformation($"? Efluente updated: {id}");
-
+                _logger.LogInformation("Efluente atualizado: {Id}", id);
                 return Ok(new { mensagem = "Efluente atualizado com sucesso", dados = MapToDTO(efluente) });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"? Error updating efluente: {ex.Message}");
+                _logger.LogError("Erro ao atualizar efluente {Id}: {Message}", id, ex.Message);
                 return BadRequest(new { mensagem = "Erro ao atualizar efluente", erro = ex.Message });
             }
         }
 
-        /// <summary>
-        /// Delete efluente
-        /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Roles = "admin")]
         public IActionResult Delete(string id)
@@ -280,69 +184,171 @@ namespace CPTMBack.Controllers
             try
             {
                 var efluente = _efluenteRepository.Get(id);
-
                 if (efluente == null)
-                {
-                    return NotFound(new { mensagem = "Efluente n„o encontrado" });
-                }
+                    return NotFound(new { mensagem = "Efluente n√£o encontrado" });
 
                 _efluenteRepository.Delete(id);
-
-                _logger.LogInformation($"? Efluente deleted: {id}");
-
+                _logger.LogInformation("Efluente deletado: {Id}", id);
                 return Ok(new { mensagem = "Efluente deletado com sucesso" });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"? Error deleting efluente: {ex.Message}");
+                _logger.LogError("Erro ao deletar efluente {Id}: {Message}", id, ex.Message);
                 return BadRequest(new { mensagem = "Erro ao deletar efluente", erro = ex.Message });
             }
         }
 
-        // ===== HELPER METHODS =====
+        private static PT_EFLUENTE MapFromViewModel(PT_EFLUENTEViewModel model) => new PT_EFLUENTE(
+            pkCdMeioAmbienteCptm: model.pkCdMeioAmbienteCptm,
+            txNrElementoMonitoramento: model.txNrElementoMonitoramento,
+            txNmElementoMonitoramento: model.txNmElementoMonitoramento,
+            txSiglaDeptomMeioAmbiente: model.txSiglaDeptomMeioAmbiente,
+            txStatusDoDesvioAmbiental: model.txStatusDoDesvioAmbiental,
+            txStatusDoRegistroNoBd: model.txStatusDoRegistroNoBd,
+            txMunicipio: model.txMunicipio,
+            txLinhaCptm: model.txLinhaCptm,
+            txViaCptm: model.txViaCptm,
+            txTrechoESentidoCptm: model.txTrechoESentidoCptm,
+            txKmPoste: model.txKmPoste,
+            txEstacaoCptm: model.txEstacaoCptm,
+            nrLatGrauDecimalWgs84: model.nrLatGrauDecimalWgs84,
+            nrLongGrauDecimalWgs84: model.nrLongGrauDecimalWgs84,
+            nrLatMetrosSirgas2000: model.nrLatMetrosSirgas2000,
+            nrLongMetrosSirgas2000: model.nrLongMetrosSirgas2000,
+            txNmLocalEscopoContratual: model.txNmLocalEscopoContratual,
+            txTipoDeFormulario: model.txTipoDeFormulario,
+            dtDataEmissaoFormulario: model.dtDataEmissaoFormulario,
+            nrNumeroDeFormulario: model.nrNumeroDeFormulario,
+            txAutorPfDoFormulario: model.txAutorPfDoFormulario,
+            txNaturezaDoPga: model.txNaturezaDoPga,
+            txNomePjExecutora: model.txNomePjExecutora,
+            txTipoAtividadeListada: model.txTipoAtividadeListada,
+            txTipoAtividadeNListada: model.txTipoAtividadeNListada,
+            txTipoDraListado: model.txTipoDraListado,
+            txTipoDraNListado: model.txTipoDraNListado,
+            txIdDra: model.txIdDra,
+            dtValidadeDra: model.dtValidadeDra,
+            txAnaliseCptmAprovacao: model.txAnaliseCptmAprovacao,
+            txTipoAtividadeCptm: model.txTipoAtividadeCptm,
+            txNmLocalAtiv: model.txNmLocalAtiv,
+            txNmLocalAtivComplemento: model.txNmLocalAtivComplemento,
+            txOrigemEfluente: model.txOrigemEfluente,
+            txFonteGeradora: model.txFonteGeradora,
+            nrQuantidadeL: model.nrQuantidadeL,
+            txTipoDestinacao: model.txTipoDestinacao,
+            txTipoVeiculo: model.txTipoVeiculo,
+            txIdVeiculo: model.txIdVeiculo,
+            txIdGuiaRemessa: model.txIdGuiaRemessa,
+            nrDistanciaDaViaM: model.nrDistanciaDaViaM,
+            txOfereceRiscoSistemaCptm: model.txOfereceRiscoSistemaCptm,
+            txProprietario: model.txProprietario,
+            txObsCadastramento: model.txObsCadastramento,
+            dtDataDoCadastramento: model.dtDataDoCadastramento,
+            hrHorasDoCadastramento: model.hrHorasDoCadastramento,
+            txAutorPjDoCadastro: model.txAutorPjDoCadastro,
+            txAutorPfDoCadastro: model.txAutorPfDoCadastro,
+            txNmResponsavelCadastro: model.txNmResponsavelCadastro,
+            txRpResponsavelCadastro: model.txRpResponsavelCadastro,
+            txDrtResponsavelCadastro: model.txDrtResponsavelCadastro,
+            txNomePjDaContratada: model.txNomePjDaContratada,
+            txNrContratoContratada: model.txNrContratoContratada,
+            txNmAreaGestoraCptm: model.txNmAreaGestoraCptm,
+            txIdAreaGestoraCptm: model.txIdAreaGestoraCptm,
+            txSiglaAreaGestoraCptm: model.txSiglaAreaGestoraCptm,
+            txNomePfDaRepresentante: model.txNomePfDaRepresentante,
+            txNomePjDaSupervisora: model.txNomePjDaSupervisora,
+            txNrContratoSupervisora: model.txNrContratoSupervisora,
+            txNmArquivoFdcRelacionado: model.txNmArquivoFdcRelacionado,
+            pkCdArquivoFdcRelacionado: model.pkCdArquivoFdcRelacionado,
+            txNmArquivoRvtRelacionado: model.txNmArquivoRvtRelacionado,
+            pkCdElementoDeMonitorRvt: model.pkCdElementoDeMonitorRvt,
+            txNmArquivoDacRelacionado: model.txNmArquivoDacRelacionado,
+            pkCdElementoDeMonitorDac: model.pkCdElementoDeMonitorDac,
+            txNmArquivoCncRelacionado: model.txNmArquivoCncRelacionado,
+            pkCdElementoDeMonitorCnc: model.pkCdElementoDeMonitorCnc,
+            pkCdCodigoNoUltimoRra: model.pkCdCodigoNoUltimoRra,
+            pkCdCedoc: model.pkCdCedoc,
+            txNomeFoto01: model.txNomeFoto01,
+            txNomeFoto02: model.txNomeFoto02,
+            txNomeFoto03: model.txNomeFoto03,
+            txNomeFoto04: model.txNomeFoto04
+        );
 
-        private PT_EFLUENTEDTO MapToDTO(PT_EFLUENTE efluente)
+        private static PT_EFLUENTEDTO MapToDTO(PT_EFLUENTE e) => new PT_EFLUENTEDTO
         {
-            return new PT_EFLUENTEDTO
-            {
-                pkCdMeioAmbienteCptm = efluente.pkCdMeioAmbienteCptm,
-                idDeptoCampoAmbiente = efluente.idDeptoCampoAmbiente,
-                idStatusDesvio = efluente.idStatusDesvio,
-                idStatusRegistro = efluente.idStatusRegistro,
-                idMunicipio = efluente.idMunicipio,
-                idLinha = efluente.idLinha,
-                idVia = efluente.idVia,
-                idTrecho = efluente.idTrecho,
-                idTipoEfluente = efluente.idTipoEfluente,
-                txNrElementoMonitoramento = efluente.txNrElementoMonitoramento,
-                txNmElementoMonitoramento = efluente.txNmElementoMonitoramento,
-                txKmPoste = efluente.txKmPoste,
-                txEndereco = efluente.txEndereco,
-                txCoordenadaX = efluente.txCoordenadaX,
-                txCoordenadaY = efluente.txCoordenadaY,
-                dtRegistro = efluente.dtRegistro,
-                dtAtualizacao = efluente.dtAtualizacao,
-                txNomeTecnicoResponsavel = efluente.txNomeTecnicoResponsavel,
-                txEmailTecnicoResponsavel = efluente.txEmailTecnicoResponsavel,
-                txTelefoneTecnicoResponsavel = efluente.txTelefoneTecnicoResponsavel,
-                txEmpresaContratada = efluente.txEmpresaContratada,
-                txNumeroContrato = efluente.txNumeroContrato,
-                txProcessoAmbiental = efluente.txProcessoAmbiental,
-                txOrigemEfluente = efluente.txOrigemEfluente,
-                txDestinacaoEfluente = efluente.txDestinacaoEfluente,
-                txVolumeEfluente = efluente.txVolumeEfluente,
-                txUnidadeVolume = efluente.txUnidadeVolume,
-                txCorEfluente = efluente.txCorEfluente,
-                txOdorEfluente = efluente.txOdorEfluente,
-                txPh = efluente.txPh,
-                txTemperatura = efluente.txTemperatura,
-                txObservacao = efluente.txObservacao,
-                txLinkMapa = efluente.txLinkMapa,
-                txNomeFoto01 = efluente.txNomeFoto01,
-                txNomeFoto02 = efluente.txNomeFoto02,
-                txNomeFoto03 = efluente.txNomeFoto03,
-                txNomeFoto04 = efluente.txNomeFoto04
-            };
-        }
+            pkCdMeioAmbienteCptm = e.pkCdMeioAmbienteCptm,
+            txNrElementoMonitoramento = e.txNrElementoMonitoramento,
+            txNmElementoMonitoramento = e.txNmElementoMonitoramento,
+            txSiglaDeptomMeioAmbiente = e.txSiglaDeptomMeioAmbiente,
+            txStatusDoDesvioAmbiental = e.txStatusDoDesvioAmbiental,
+            txStatusDoRegistroNoBd = e.txStatusDoRegistroNoBd,
+            txMunicipio = e.txMunicipio,
+            txLinhaCptm = e.txLinhaCptm,
+            txViaCptm = e.txViaCptm,
+            txTrechoESentidoCptm = e.txTrechoESentidoCptm,
+            txKmPoste = e.txKmPoste,
+            txEstacaoCptm = e.txEstacaoCptm,
+            nrLatGrauDecimalWgs84 = e.nrLatGrauDecimalWgs84,
+            nrLongGrauDecimalWgs84 = e.nrLongGrauDecimalWgs84,
+            nrLatMetrosSirgas2000 = e.nrLatMetrosSirgas2000,
+            nrLongMetrosSirgas2000 = e.nrLongMetrosSirgas2000,
+            txNmLocalEscopoContratual = e.txNmLocalEscopoContratual,
+            txTipoDeFormulario = e.txTipoDeFormulario,
+            dtDataEmissaoFormulario = e.dtDataEmissaoFormulario,
+            nrNumeroDeFormulario = e.nrNumeroDeFormulario,
+            txAutorPfDoFormulario = e.txAutorPfDoFormulario,
+            txNaturezaDoPga = e.txNaturezaDoPga,
+            txNomePjExecutora = e.txNomePjExecutora,
+            txTipoAtividadeListada = e.txTipoAtividadeListada,
+            txTipoAtividadeNListada = e.txTipoAtividadeNListada,
+            txTipoDraListado = e.txTipoDraListado,
+            txTipoDraNListado = e.txTipoDraNListado,
+            txIdDra = e.txIdDra,
+            dtValidadeDra = e.dtValidadeDra,
+            txAnaliseCptmAprovacao = e.txAnaliseCptmAprovacao,
+            txTipoAtividadeCptm = e.txTipoAtividadeCptm,
+            txNmLocalAtiv = e.txNmLocalAtiv,
+            txNmLocalAtivComplemento = e.txNmLocalAtivComplemento,
+            txOrigemEfluente = e.txOrigemEfluente,
+            txFonteGeradora = e.txFonteGeradora,
+            nrQuantidadeL = e.nrQuantidadeL,
+            txTipoDestinacao = e.txTipoDestinacao,
+            txTipoVeiculo = e.txTipoVeiculo,
+            txIdVeiculo = e.txIdVeiculo,
+            txIdGuiaRemessa = e.txIdGuiaRemessa,
+            nrDistanciaDaViaM = e.nrDistanciaDaViaM,
+            txOfereceRiscoSistemaCptm = e.txOfereceRiscoSistemaCptm,
+            txProprietario = e.txProprietario,
+            txObsCadastramento = e.txObsCadastramento,
+            dtDataDoCadastramento = e.dtDataDoCadastramento,
+            hrHorasDoCadastramento = e.hrHorasDoCadastramento,
+            txAutorPjDoCadastro = e.txAutorPjDoCadastro,
+            txAutorPfDoCadastro = e.txAutorPfDoCadastro,
+            txNmResponsavelCadastro = e.txNmResponsavelCadastro,
+            txRpResponsavelCadastro = e.txRpResponsavelCadastro,
+            txDrtResponsavelCadastro = e.txDrtResponsavelCadastro,
+            txNomePjDaContratada = e.txNomePjDaContratada,
+            txNrContratoContratada = e.txNrContratoContratada,
+            txNmAreaGestoraCptm = e.txNmAreaGestoraCptm,
+            txIdAreaGestoraCptm = e.txIdAreaGestoraCptm,
+            txSiglaAreaGestoraCptm = e.txSiglaAreaGestoraCptm,
+            txNomePfDaRepresentante = e.txNomePfDaRepresentante,
+            txNomePjDaSupervisora = e.txNomePjDaSupervisora,
+            txNrContratoSupervisora = e.txNrContratoSupervisora,
+            txNmArquivoFdcRelacionado = e.txNmArquivoFdcRelacionado,
+            pkCdArquivoFdcRelacionado = e.pkCdArquivoFdcRelacionado,
+            txNmArquivoRvtRelacionado = e.txNmArquivoRvtRelacionado,
+            pkCdElementoDeMonitorRvt = e.pkCdElementoDeMonitorRvt,
+            txNmArquivoDacRelacionado = e.txNmArquivoDacRelacionado,
+            pkCdElementoDeMonitorDac = e.pkCdElementoDeMonitorDac,
+            txNmArquivoCncRelacionado = e.txNmArquivoCncRelacionado,
+            pkCdElementoDeMonitorCnc = e.pkCdElementoDeMonitorCnc,
+            pkCdCodigoNoUltimoRra = e.pkCdCodigoNoUltimoRra,
+            pkCdCedoc = e.pkCdCedoc,
+            txNomeFoto01 = e.txNomeFoto01,
+            txNomeFoto02 = e.txNomeFoto02,
+            txNomeFoto03 = e.txNomeFoto03,
+            txNomeFoto04 = e.txNomeFoto04,
+        };
     }
 }

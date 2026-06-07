@@ -3,77 +3,77 @@ namespace CPTMBack.Application.ViewModels
     public class PT_EFLUENTEViewModel
     {
         public string pkCdMeioAmbienteCptm { get; set; } = string.Empty;
-
-        public int idDeptoCampoAmbiente { get; set; }
-
-        public int idStatusDesvio { get; set; }
-
-        public int idStatusRegistro { get; set; }
-
-        public int idMunicipio { get; set; }
-
-        public int idLinha { get; set; }
-
-        public int idVia { get; set; }
-
-        public int idTrecho { get; set; }
-
-        public int idTipoEfluente { get; set; }
-
         public string? txNrElementoMonitoramento { get; set; }
-
         public string? txNmElementoMonitoramento { get; set; }
-
+        public string? txSiglaDeptomMeioAmbiente { get; set; }
+        public string? txStatusDoDesvioAmbiental { get; set; }
+        public string? txStatusDoRegistroNoBd { get; set; }
+        public string? txMunicipio { get; set; }
+        public string? txLinhaCptm { get; set; }
+        public string? txViaCptm { get; set; }
+        public string? txTrechoESentidoCptm { get; set; }
         public string? txKmPoste { get; set; }
-
-        public string? txEndereco { get; set; }
-
-        public decimal? txCoordenadaX { get; set; }
-
-        public decimal? txCoordenadaY { get; set; }
-
-        public DateTime? dtRegistro { get; set; }
-
-        public DateTime? dtAtualizacao { get; set; }
-
-        public string? txNomeTecnicoResponsavel { get; set; }
-
-        public string? txEmailTecnicoResponsavel { get; set; }
-
-        public string? txTelefoneTecnicoResponsavel { get; set; }
-
-        public string? txEmpresaContratada { get; set; }
-
-        public string? txNumeroContrato { get; set; }
-
-        public string? txProcessoAmbiental { get; set; }
-
+        public string? txEstacaoCptm { get; set; }
+        public decimal? nrLatGrauDecimalWgs84 { get; set; }
+        public decimal? nrLongGrauDecimalWgs84 { get; set; }
+        public decimal? nrLatMetrosSirgas2000 { get; set; }
+        public decimal? nrLongMetrosSirgas2000 { get; set; }
+        public string? txNmLocalEscopoContratual { get; set; }
+        public string? txTipoDeFormulario { get; set; }
+        public DateTime? dtDataEmissaoFormulario { get; set; }
+        public int? nrNumeroDeFormulario { get; set; }
+        public string? txAutorPfDoFormulario { get; set; }
+        public string? txNaturezaDoPga { get; set; }
+        public string? txNomePjExecutora { get; set; }
+        public string? txTipoAtividadeListada { get; set; }
+        public string? txTipoAtividadeNListada { get; set; }
+        public string? txTipoDraListado { get; set; }
+        public string? txTipoDraNListado { get; set; }
+        public string? txIdDra { get; set; }
+        public DateTime? dtValidadeDra { get; set; }
+        public string? txAnaliseCptmAprovacao { get; set; }
+        public string? txTipoAtividadeCptm { get; set; }
+        public string? txNmLocalAtiv { get; set; }
+        public string? txNmLocalAtivComplemento { get; set; }
         public string? txOrigemEfluente { get; set; }
-
-        public string? txDestinacaoEfluente { get; set; }
-
-        public decimal? txVolumeEfluente { get; set; }
-
-        public string? txUnidadeVolume { get; set; }
-
-        public string? txCorEfluente { get; set; }
-
-        public string? txOdorEfluente { get; set; }
-
-        public decimal? txPh { get; set; }
-
-        public decimal? txTemperatura { get; set; }
-
-        public string? txObservacao { get; set; }
-
-        public string? txLinkMapa { get; set; }
-
+        public string? txFonteGeradora { get; set; }
+        public decimal? nrQuantidadeL { get; set; }
+        public string? txTipoDestinacao { get; set; }
+        public string? txTipoVeiculo { get; set; }
+        public string? txIdVeiculo { get; set; }
+        public string? txIdGuiaRemessa { get; set; }
+        public decimal? nrDistanciaDaViaM { get; set; }
+        public string? txOfereceRiscoSistemaCptm { get; set; }
+        public string? txProprietario { get; set; }
+        public string? txObsCadastramento { get; set; }
+        public DateTime? dtDataDoCadastramento { get; set; }
+        public string? hrHorasDoCadastramento { get; set; }
+        public string? txAutorPjDoCadastro { get; set; }
+        public string? txAutorPfDoCadastro { get; set; }
+        public string? txNmResponsavelCadastro { get; set; }
+        public string? txRpResponsavelCadastro { get; set; }
+        public string? txDrtResponsavelCadastro { get; set; }
+        public string? txNomePjDaContratada { get; set; }
+        public string? txNrContratoContratada { get; set; }
+        public string? txNmAreaGestoraCptm { get; set; }
+        public string? txIdAreaGestoraCptm { get; set; }
+        public string? txSiglaAreaGestoraCptm { get; set; }
+        public string? txNomePfDaRepresentante { get; set; }
+        public string? txNomePjDaSupervisora { get; set; }
+        public string? txNrContratoSupervisora { get; set; }
+        public string? txNmArquivoFdcRelacionado { get; set; }
+        public string? pkCdArquivoFdcRelacionado { get; set; }
+        public string? txNmArquivoRvtRelacionado { get; set; }
+        public string? pkCdElementoDeMonitorRvt { get; set; }
+        public string? txNmArquivoDacRelacionado { get; set; }
+        public string? pkCdElementoDeMonitorDac { get; set; }
+        public string? txNmArquivoCncRelacionado { get; set; }
+        public string? pkCdElementoDeMonitorCnc { get; set; }
+        public string? pkCdCodigoNoUltimoRra { get; set; }
+        public string? pkCdCedoc { get; set; }
         public string? txNomeFoto01 { get; set; }
-
         public string? txNomeFoto02 { get; set; }
-
         public string? txNomeFoto03 { get; set; }
-
         public string? txNomeFoto04 { get; set; }
     }
 }
