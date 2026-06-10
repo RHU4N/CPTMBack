@@ -24,7 +24,12 @@ namespace CPTMBack.Infraestrutura.Repositories
 
         public TB_USUARIO? GetByLogin(string login)
         {
-            return _context.TB_USUARIO.FirstOrDefault(x => x.dsLogin == login);
+            return _context.TB_USUARIO.FirstOrDefault(x => x.dsLogin.ToLower() == login.ToLower());
+        }
+
+        public TB_USUARIO? GetByEmail(string email)
+        {
+            return _context.TB_USUARIO.FirstOrDefault(x => x.dsEmail != null && x.dsEmail.ToLower() == email.ToLower());
         }
 
         public IEnumerable<TB_USUARIO> GetAll()
@@ -63,6 +68,12 @@ namespace CPTMBack.Infraestrutura.Repositories
             {
                 return false;
             }
+        }
+
+        public int GetNextId()
+        {
+            var all = _context.TB_USUARIO.ToList();
+            return all.Any() ? all.Max(u => u.idUsuario) + 1 : 1;
         }
     }
 }

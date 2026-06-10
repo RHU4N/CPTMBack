@@ -203,7 +203,8 @@ using (var scope = app.Services.CreateScope())
                 dsSenhaHash: "",
                 idPerfil: 1,
                 dsEmail: "admin@cptm.gov.br",
-                flAtivo: true
+                flAtivo: true,
+                flPrimeiroAcesso: false  // Usuarios seed ja possuem acesso direto
             );
 
             adminUser.UpdatePassword(passwordHasher.HashPassword(adminUser, "admin123"));
@@ -216,7 +217,8 @@ using (var scope = app.Services.CreateScope())
                 dsSenhaHash: "",
                 idPerfil: 2,
                 dsEmail: "operador@cptm.gov.br",
-                flAtivo: true
+                flAtivo: true,
+                flPrimeiroAcesso: false  // Usuarios seed ja possuem acesso direto
             );
 
             operadorUser.UpdatePassword(passwordHasher.HashPassword(operadorUser, "operador123"));

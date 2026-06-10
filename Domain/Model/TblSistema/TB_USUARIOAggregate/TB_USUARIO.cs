@@ -28,6 +28,12 @@ namespace CPTMBack.Domain.Model.TblSistema.TB_USUARIOAggregate
         [Column("FL_ATIVO")]
         public bool flAtivo { get; private set; }
 
+        [Column("FL_PRIMEIRO_ACESSO")]
+        public bool flPrimeiroAcesso { get; private set; }
+
+        [Column("DT_ULTIMA_TROCA_SENHA")]
+        public DateTime? dtUltimaTrocaSenha { get; private set; }
+
         [Column("DT_CADASTRO")]
         public DateTime dtCadastro { get; private set; }
 
@@ -49,6 +55,8 @@ namespace CPTMBack.Domain.Model.TblSistema.TB_USUARIOAggregate
             int idPerfil,
             string? dsEmail = null,
             bool flAtivo = true,
+            bool flPrimeiroAcesso = true,
+            DateTime? dtUltimaTrocaSenha = null,
             DateTime? dtCadastro = null,
             DateTime? dtAtualizacao = null)
         {
@@ -59,29 +67,48 @@ namespace CPTMBack.Domain.Model.TblSistema.TB_USUARIOAggregate
             this.dsSenhaHash = dsSenhaHash;
             this.idPerfil = idPerfil;
             this.flAtivo = flAtivo;
-            this.dtCadastro = dtCadastro ?? DateTime.Now;
-            this.dtAtualizacao = dtAtualizacao ?? DateTime.Now;
+            this.flPrimeiroAcesso = flPrimeiroAcesso;
+            this.dtUltimaTrocaSenha = dtUltimaTrocaSenha;
+            this.dtCadastro = dtCadastro ?? DateTime.UtcNow;
+            this.dtAtualizacao = dtAtualizacao ?? DateTime.UtcNow;
         }
-
-        // ===== Public Methods =====
 
         public void UpdatePassword(string newPasswordHash)
         {
             dsSenhaHash = newPasswordHash;
-            dtAtualizacao = DateTime.Now;
+            dtAtualizacao = DateTime.UtcNow;
         }
 
         public void SetActive(bool isActive)
         {
             flAtivo = isActive;
-            dtAtualizacao = DateTime.Now;
+            dtAtualizacao = DateTime.UtcNow;
         }
 
         public void UpdateInfo(string nmUsuario, string? dsEmail)
         {
             this.nmUsuario = nmUsuario;
             this.dsEmail = dsEmail;
-            dtAtualizacao = DateTime.Now;
+            dtAtualizacao = DateTime.UtcNow;
+        }
+
+        public void UpdateAllInfo(string nmUsuario, string? dsEmail, int idPerfil)
+        {
+            this.nmUsuario = nmUsuario;
+            this.dsEmail = dsEmail;
+            this.idPerfil = idPerfil;
+            dtAtualizacao = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// Conclui o primeiro acesso: atualiza senha, marca FL_PRIMEIRO_ACESSO = false e registra data da troca.
+        /// </summary>
+        public void CompleteFirstAccess(string newPasswordHash)
+        {
+            dsSenhaHash = newPasswordHash;
+            flPrimeiroAcesso = false;
+            dtUltimaTrocaSenha = DateTime.UtcNow;
+            dtAtualizacao = DateTime.UtcNow;
         }
     }
 }

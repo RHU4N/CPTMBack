@@ -1,6 +1,9 @@
 using CPTMBack.Domain.DTOs;
+using CPTMBack.Domain.Model.TblDominio.TB_PERFIL_USUARIOAggregate;
+using CPTMBack.Domain.Model.TblSistema.TB_LOG_ACAOAggregate;
 using CPTMBack.Domain.Model.TblSistema.TB_USUARIOAggregate;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CPTMBack.Controllers
@@ -11,48 +14,47 @@ namespace CPTMBack.Controllers
     public class TB_USUARIOController : ControllerBase
     {
         private readonly ITB_USUARIORepository _usuarioRepository;
+        private readonly ITB_PERFIL_USUARIORepository _perfilRepository;
+        private readonly ITB_LOG_ACAORepository _logRepository;
+        private readonly IPasswordHasher<TB_USUARIO> _passwordHasher;
         private readonly ILogger<TB_USUARIOController> _logger;
 
         public TB_USUARIOController(
             ITB_USUARIORepository usuarioRepository,
+            ITB_PERFIL_USUARIORepository perfilRepository,
+            ITB_LOG_ACAORepository logRepository,
+            IPasswordHasher<TB_USUARIO> passwordHasher,
             ILogger<TB_USUARIOController> logger)
         {
             _usuarioRepository = usuarioRepository;
+            _perfilRepository = perfilRepository;
+            _logRepository = logRepository;
+            _passwordHasher = passwordHasher;
             _logger = logger;
         }
 
-        /// <summary>
-        /// Get all users (Admin only)
-        /// </summary>
+        // GET /api/TB_USUARIO
         [HttpGet]
         [Authorize(Roles = "admin")]
         public IActionResult GetAll()
         {
             try
             {
-                var usuarios = _usuarioRepository.GetAll();
+                var usuarios = _usuarioRepository.GetAll().ToList();
+                var perfis = _perfilRepository.GetAll().ToList();
+                var dtos = usuarios.Select(u => MapToDTO(u, perfis)).ToList();
 
-                if (!usuarios.Any())
-                {
-                    return Ok(new { dados = usuarios, total = 0 });
-                }
-
-                var dtos = usuarios.Select(u => MapToDTO(u)).ToList();
-
-                _logger.LogInformation($"? Retrieved {dtos.Count} users");
-
+                _logger.LogInformation("Listagem de usuarios: {Count} registros", dtos.Count);
                 return Ok(new { dados = dtos, total = dtos.Count });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"? Error retrieving users: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao recuperar usuários", erro = ex.Message });
+                _logger.LogError(ex, "Erro ao listar usuarios");
+                return BadRequest(new { mensagem = "Erro ao recuperar usuarios", erro = ex.Message });
             }
         }
 
-        /// <summary>
-        /// Get user by ID (Admin only)
-        /// </summary>
+        // GET /api/TB_USUARIO/{id}
         [HttpGet("{id}")]
         [Authorize(Roles = "admin")]
         public IActionResult GetById(int id)
@@ -60,170 +62,256 @@ namespace CPTMBack.Controllers
             try
             {
                 var usuario = _usuarioRepository.Get(id);
-
                 if (usuario == null)
-                {
-                    return NotFound(new { mensagem = "Usuário não encontrado" });
-                }
+                    return NotFound(new { mensagem = "Usuario nao encontrado" });
 
-                var dto = MapToDTO(usuario);
-
-                _logger.LogInformation($"? Retrieved user: {id}");
-
-                return Ok(dto);
+                var perfis = _perfilRepository.GetAll().ToList();
+                return Ok(MapToDTO(usuario, perfis));
             }
             catch (Exception ex)
             {
-                _logger.LogError($"? Error retrieving user: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao recuperar usuário", erro = ex.Message });
+                _logger.LogError(ex, "Erro ao buscar usuario {Id}", id);
+                return BadRequest(new { mensagem = "Erro ao recuperar usuario", erro = ex.Message });
             }
         }
 
-        /// <summary>
-        /// Get user by login
-        /// </summary>
-        [HttpGet("by-login/{login}")]
-        public IActionResult GetByLogin(string login)
+        // POST /api/TB_USUARIO
+        [HttpPost]
+        [Authorize(Roles = "admin")]
+        public IActionResult Create([FromBody] CreateUsuarioDTO dto)
         {
             try
             {
-                var usuario = _usuarioRepository.GetAll()
-                    .FirstOrDefault(u => u.dsLogin.ToLower() == login.ToLower());
+                if (string.IsNullOrWhiteSpace(dto.nmUsuario) ||
+                    string.IsNullOrWhiteSpace(dto.dsLogin) ||
+                    string.IsNullOrWhiteSpace(dto.dsSenha))
+                    return BadRequest(new { mensagem = "Nome, login e senha sao obrigatorios" });
 
-                if (usuario == null)
-                {
-                    return NotFound(new { mensagem = "Usuário não encontrado" });
-                }
+                if (dto.dsSenha.Length < 8)
+                    return BadRequest(new { mensagem = "A senha deve ter no minimo 8 caracteres" });
 
-                var dto = MapToDTO(usuario);
+                if (!dto.dsSenha.Any(char.IsLetter) || !dto.dsSenha.Any(char.IsDigit))
+                    return BadRequest(new { mensagem = "A senha deve conter letras e numeros" });
 
-                _logger.LogInformation($"? Retrieved user by login: {login}");
+                var todos = _usuarioRepository.GetAll().ToList();
 
-                return Ok(dto);
+                if (todos.Any(u => u.dsLogin.ToLower() == dto.dsLogin.ToLower()))
+                    return Conflict(new { mensagem = "Login ja cadastrado" });
+
+                if (!string.IsNullOrWhiteSpace(dto.dsEmail) &&
+                    todos.Any(u => u.dsEmail != null && u.dsEmail.ToLower() == dto.dsEmail.ToLower()))
+                    return Conflict(new { mensagem = "E-mail ja cadastrado" });
+
+                var nextId = _usuarioRepository.GetNextId();
+                var senhaHash = _passwordHasher.HashPassword(null!, dto.dsSenha);
+
+                var novoUsuario = new TB_USUARIO(
+                    idUsuario: nextId,
+                    nmUsuario: dto.nmUsuario,
+                    dsLogin: dto.dsLogin,
+                    dsSenhaHash: senhaHash,
+                    idPerfil: dto.idPerfil,
+                    dsEmail: dto.dsEmail,
+                    flAtivo: dto.flAtivo,
+                    flPrimeiroAcesso: true,
+                    dtCadastro: DateTime.UtcNow,
+                    dtAtualizacao: DateTime.UtcNow
+                );
+
+                _usuarioRepository.Add(novoUsuario);
+
+                var adminId = ObterIdUsuarioLogado();
+                RegistrarLog(adminId, "CRIACAO", "TB_USUARIO", nextId.ToString(), $"Admin criou usuario '{dto.dsLogin}'");
+
+                _logger.LogInformation("Usuario criado: {Login} (ID {Id})", dto.dsLogin, nextId);
+
+                var perfis = _perfilRepository.GetAll().ToList();
+                return CreatedAtAction(nameof(GetById), new { id = nextId }, MapToDTO(novoUsuario, perfis));
             }
             catch (Exception ex)
             {
-                _logger.LogError($"? Error retrieving user by login: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao recuperar usuário", erro = ex.Message });
+                _logger.LogError(ex, "Erro ao criar usuario");
+                return BadRequest(new { mensagem = "Erro ao criar usuario", erro = ex.Message });
             }
         }
 
-        /// <summary>
-        /// Get users by profile/role (Admin only)
-        /// </summary>
-        [HttpGet("by-profile/{idPerfil}")]
+        // PUT /api/TB_USUARIO/{id}
+        [HttpPut("{id}")]
         [Authorize(Roles = "admin")]
-        public IActionResult GetByProfile(int idPerfil)
-        {
-            try
-            {
-                var usuarios = _usuarioRepository.GetAll()
-                    .Where(u => u.idPerfil == idPerfil)
-                    .ToList();
-
-                var dtos = usuarios.Select(u => MapToDTO(u)).ToList();
-
-                _logger.LogInformation($"? Retrieved {dtos.Count} users with profile {idPerfil}");
-
-                return Ok(new { dados = dtos, total = dtos.Count });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"? Error retrieving users by profile: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao recuperar usuários", erro = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Get active users (Admin only)
-        /// </summary>
-        [HttpGet("filter/active")]
-        [Authorize(Roles = "admin")]
-        public IActionResult GetActive()
-        {
-            try
-            {
-                var usuarios = _usuarioRepository.GetAll()
-                    .Where(u => u.flAtivo)
-                    .ToList();
-
-                var dtos = usuarios.Select(u => MapToDTO(u)).ToList();
-
-                _logger.LogInformation($"? Retrieved {dtos.Count} active users");
-
-                return Ok(new { dados = dtos, total = dtos.Count });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"? Error retrieving active users: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao recuperar usuários ativos", erro = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Deactivate user (Admin only)
-        /// </summary>
-        [HttpPut("{id}/deactivate")]
-        [Authorize(Roles = "admin")]
-        public IActionResult DeactivateUser(int id)
+        public IActionResult Update(int id, [FromBody] UpdateUsuarioDTO dto)
         {
             try
             {
                 var usuario = _usuarioRepository.Get(id);
-
                 if (usuario == null)
-                {
-                    return NotFound(new { mensagem = "Usuário não encontrado" });
-                }
+                    return NotFound(new { mensagem = "Usuario nao encontrado" });
+
+                usuario.UpdateAllInfo(dto.nmUsuario, dto.dsEmail, dto.idPerfil);
+                _usuarioRepository.Update(usuario);
+
+                var adminId = ObterIdUsuarioLogado();
+                RegistrarLog(adminId, "EDICAO", "TB_USUARIO", id.ToString(), $"Admin editou usuario ID {id}");
+
+                _logger.LogInformation("Usuario atualizado: {Id}", id);
+
+                var perfis = _perfilRepository.GetAll().ToList();
+                return Ok(new { mensagem = "Usuario atualizado com sucesso", dados = MapToDTO(usuario, perfis) });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao atualizar usuario {Id}", id);
+                return BadRequest(new { mensagem = "Erro ao atualizar usuario", erro = ex.Message });
+            }
+        }
+
+        // PATCH /api/TB_USUARIO/{id}/desativar
+        [HttpPatch("{id}/desativar")]
+        [Authorize(Roles = "admin")]
+        public IActionResult Desativar(int id)
+        {
+            try
+            {
+                var usuario = _usuarioRepository.Get(id);
+                if (usuario == null)
+                    return NotFound(new { mensagem = "Usuario nao encontrado" });
+
+                if (!usuario.flAtivo)
+                    return BadRequest(new { mensagem = "Usuario ja esta inativo" });
 
                 usuario.SetActive(false);
                 _usuarioRepository.Update(usuario);
 
-                _logger.LogInformation($"? User deactivated: {id}");
+                var adminId = ObterIdUsuarioLogado();
+                RegistrarLog(adminId, "DESATIVACAO", "TB_USUARIO", id.ToString(), $"Admin desativou usuario ID {id}");
 
-                return Ok(new { mensagem = "Usuário desativado com sucesso", dados = MapToDTO(usuario) });
+                _logger.LogInformation("Usuario desativado: {Id}", id);
+
+                var perfis = _perfilRepository.GetAll().ToList();
+                return Ok(new { mensagem = "Usuario desativado com sucesso", dados = MapToDTO(usuario, perfis) });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"? Error deactivating user: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao desativar usuário", erro = ex.Message });
+                _logger.LogError(ex, "Erro ao desativar usuario {Id}", id);
+                return BadRequest(new { mensagem = "Erro ao desativar usuario", erro = ex.Message });
             }
         }
 
-        /// <summary>
-        /// Activate user (Admin only)
-        /// </summary>
-        [HttpPut("{id}/activate")]
+        // PATCH /api/TB_USUARIO/{id}/reativar
+        [HttpPatch("{id}/reativar")]
         [Authorize(Roles = "admin")]
-        public IActionResult ActivateUser(int id)
+        public IActionResult Reativar(int id)
         {
             try
             {
                 var usuario = _usuarioRepository.Get(id);
-
                 if (usuario == null)
-                {
-                    return NotFound(new { mensagem = "Usuário não encontrado" });
-                }
+                    return NotFound(new { mensagem = "Usuario nao encontrado" });
+
+                if (usuario.flAtivo)
+                    return BadRequest(new { mensagem = "Usuario ja esta ativo" });
 
                 usuario.SetActive(true);
                 _usuarioRepository.Update(usuario);
 
-                _logger.LogInformation($"? User activated: {id}");
+                var adminId = ObterIdUsuarioLogado();
+                RegistrarLog(adminId, "REATIVACAO", "TB_USUARIO", id.ToString(), $"Admin reativou usuario ID {id}");
 
-                return Ok(new { mensagem = "Usuário ativado com sucesso", dados = MapToDTO(usuario) });
+                _logger.LogInformation("Usuario reativado: {Id}", id);
+
+                var perfis = _perfilRepository.GetAll().ToList();
+                return Ok(new { mensagem = "Usuario reativado com sucesso", dados = MapToDTO(usuario, perfis) });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"? Error activating user: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao ativar usuário", erro = ex.Message });
+                _logger.LogError(ex, "Erro ao reativar usuario {Id}", id);
+                return BadRequest(new { mensagem = "Erro ao reativar usuario", erro = ex.Message });
             }
         }
 
-        // ===== HELPER METHODS =====
-
-        private TB_USUARIODTO MapToDTO(TB_USUARIO usuario)
+        // POST /api/TB_USUARIO/trocar-senha
+        [HttpPost("trocar-senha")]
+        public IActionResult TrocarSenha([FromBody] TrocaSenhaDTO dto)
         {
+            try
+            {
+                var userId = ObterIdUsuarioLogado();
+                if (userId == 0)
+                    return Unauthorized(new { mensagem = "Token invalido" });
+
+                var usuario = _usuarioRepository.Get(userId);
+                if (usuario == null)
+                    return NotFound(new { mensagem = "Usuario nao encontrado" });
+
+                if (!usuario.flAtivo)
+                    return Unauthorized(new { mensagem = "Usuario inativo" });
+
+                if (dto.dsNovaSenha != dto.dsNovaSenhaConfirm)
+                    return BadRequest(new { mensagem = "As senhas nao conferem" });
+
+                if (dto.dsNovaSenha.Length < 8)
+                    return BadRequest(new { mensagem = "A nova senha deve ter no minimo 8 caracteres" });
+
+                if (!dto.dsNovaSenha.Any(char.IsLetter) || !dto.dsNovaSenha.Any(char.IsDigit))
+                    return BadRequest(new { mensagem = "A nova senha deve conter letras e numeros" });
+
+                var verificacao = _passwordHasher.VerifyHashedPassword(usuario, usuario.dsSenhaHash, dto.dsSenhaAtual);
+                if (verificacao == PasswordVerificationResult.Failed)
+                    return BadRequest(new { mensagem = "Senha atual incorreta" });
+
+                var novoHash = _passwordHasher.HashPassword(usuario, dto.dsNovaSenha);
+                usuario.CompleteFirstAccess(novoHash);
+                _usuarioRepository.Update(usuario);
+
+                RegistrarLog(userId, "TROCA_SENHA", "TB_USUARIO", userId.ToString(), $"Usuario ID {userId} trocou a senha");
+
+                _logger.LogInformation("Senha trocada para usuario {Id}", userId);
+
+                return Ok(new { mensagem = "Senha alterada com sucesso", primeiroAcesso = false });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao trocar senha");
+                return BadRequest(new { mensagem = "Erro ao trocar senha", erro = ex.Message });
+            }
+        }
+
+        // ===== HELPERS =====
+
+        private int ObterIdUsuarioLogado()
+        {
+            var claim = User.FindFirst("sub")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            return int.TryParse(claim, out var id) ? id : 0;
+        }
+
+        private void RegistrarLog(int idUsuario, string acao, string tabela, string? idRegistro, string descricao)
+        {
+            try
+            {
+                var logs = _logRepository.GetAll();
+                var nextLogId = logs.Any() ? logs.Max(l => l.idLog) + 1 : 1;
+                var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+                var log = new TB_LOG_ACAO(
+                    idLog: nextLogId,
+                    idUsuario: idUsuario > 0 ? idUsuario : 0,
+                    dsAcao: acao,
+                    nmTabela: tabela,
+                    idRegistro: idRegistro,
+                    dtAcao: DateTime.UtcNow,
+                    dsIp: ip
+                );
+
+                _logRepository.Add(log);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao registrar log de auditoria");
+            }
+        }
+
+        private TB_USUARIODTO MapToDTO(TB_USUARIO usuario, IEnumerable<TB_PERFIL_USUARIO> perfis)
+        {
+            var perfil = perfis.FirstOrDefault(p => p.idPerfil == usuario.idPerfil);
             return new TB_USUARIODTO
             {
                 idUsuario = usuario.idUsuario,
@@ -231,8 +319,12 @@ namespace CPTMBack.Controllers
                 dsLogin = usuario.dsLogin,
                 dsEmail = usuario.dsEmail,
                 idPerfil = usuario.idPerfil,
+                dsPerfil = perfil?.dsPerfil ?? string.Empty,
                 flAtivo = usuario.flAtivo,
-                dtCadastro = usuario.dtCadastro
+                flPrimeiroAcesso = usuario.flPrimeiroAcesso,
+                dtUltimaTrocaSenha = usuario.dtUltimaTrocaSenha,
+                dtCadastro = usuario.dtCadastro,
+                dtAtualizacao = usuario.dtAtualizacao
             };
         }
     }

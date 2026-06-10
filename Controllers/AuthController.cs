@@ -30,69 +30,8 @@ namespace CPTMBack.Controllers
         }
 
         /// <summary>
-        /// Register a new user
-        /// </summary>
-        [AllowAnonymous]
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterViewModel model)
-        {
-            try
-            {
-                // Validate input
-                if (string.IsNullOrWhiteSpace(model.nmUsuario) ||
-                    string.IsNullOrWhiteSpace(model.dsLogin) ||
-                    string.IsNullOrWhiteSpace(model.dsSenha))
-                {
-                    return BadRequest(new { mensagem = "Nome de usu�rio, login e senha s�o obrigat�rios" });
-                }
-
-                // Validate password confirmation
-                if (model.dsSenha != model.dsSenhaConfirm)
-                {
-                    return BadRequest(new { mensagem = "As senhas n�o conferem" });
-                }
-
-                // Check if user already exists
-                var existingUsers = _usuarioRepository.GetAll();
-                if (existingUsers.Any(u => u.dsLogin.ToLower() == model.dsLogin.ToLower()))
-                {
-                    return Conflict(new { mensagem = "Usu�rio j� existe" });
-                }
-
-                // Hash password
-                var senhaHash = _passwordHasher.HashPassword(null, model.dsSenha);
-
-                // Create new user
-                var newUser = new TB_USUARIO(
-                    idUsuario: existingUsers.Max(u => u.idUsuario) + 1,
-                    nmUsuario: model.nmUsuario,
-                    dsLogin: model.dsLogin,
-                    dsSenhaHash: senhaHash,
-                    idPerfil: model.idPerfil,
-                    dsEmail: model.dsEmail,
-                    flAtivo: true
-                );
-
-                // Save user
-                _usuarioRepository.Add(newUser);
-
-                _logger.LogInformation($"? New user registered: {model.dsLogin}");
-
-                return Ok(new { 
-                    sucesso = true,
-                    mensagem = "Usu�rio registrado com sucesso",
-                    idUsuario = newUser.idUsuario
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"? Error registering user: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao registrar usu�rio", erro = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Login and get JWT token
+        /// Login — retorna token JWT e flag primeiroAcesso.
+        /// Se primeiroAcesso = true, o frontend deve redirecionar para /trocar-senha.
         /// </summary>
         [AllowAnonymous]
         [HttpPost("login")]
@@ -100,64 +39,59 @@ namespace CPTMBack.Controllers
         {
             try
             {
-                // Validate input
                 if (string.IsNullOrWhiteSpace(model.dsLogin) || string.IsNullOrWhiteSpace(model.dsSenha))
-                {
-                    return BadRequest(new { mensagem = "Login e senha s�o obrigat�rios" });
-                }
+                    return BadRequest(new { mensagem = "Login e senha sao obrigatorios" });
 
-                // Find user
                 var usuario = _usuarioRepository.GetAll()
                     .FirstOrDefault(u => u.dsLogin.ToLower() == model.dsLogin.ToLower());
 
                 if (usuario == null)
                 {
-                    _logger.LogWarning($"?? Login attempt with non-existent user: {model.dsLogin}");
-                    return Unauthorized(new { mensagem = "Usu�rio ou senha inv�lidos" });
+                    _logger.LogWarning("Tentativa de login com usuario inexistente: {Login}", model.dsLogin);
+                    return Unauthorized(new { mensagem = "Usuario ou senha invalidos" });
                 }
 
-                // Check if user is active
                 if (!usuario.flAtivo)
                 {
-                    _logger.LogWarning($"?? Login attempt with inactive user: {model.dsLogin}");
-                    return Unauthorized(new { mensagem = "Usu�rio inativo" });
+                    _logger.LogWarning("Tentativa de login com usuario inativo: {Login}", model.dsLogin);
+                    return Unauthorized(new { mensagem = "Usuario inativo. Contate o administrador." });
                 }
 
-                // Verify password
                 var result = _passwordHasher.VerifyHashedPassword(usuario, usuario.dsSenhaHash, model.dsSenha);
-
                 if (result == PasswordVerificationResult.Failed)
                 {
-                    _logger.LogWarning($"?? Failed login attempt: {model.dsLogin}");
-                    return Unauthorized(new { mensagem = "Usu�rio ou senha inv�lidos" });
+                    _logger.LogWarning("Senha incorreta para usuario: {Login}", model.dsLogin);
+                    return Unauthorized(new { mensagem = "Usuario ou senha invalidos" });
                 }
 
-                // Generate JWT token
                 var token = _jwtTokenService.GenerateToken(usuario);
 
-                _logger.LogInformation($"? User logged in successfully: {model.dsLogin}");
+                _logger.LogInformation("Login realizado: {Login} | primeiroAcesso={PA}", model.dsLogin, usuario.flPrimeiroAcesso);
 
                 return Ok(new AuthResponseViewModel
                 {
                     sucesso = true,
-                    mensagem = "Login realizado com sucesso",
+                    mensagem = usuario.flPrimeiroAcesso
+                        ? "Primeiro acesso detectado. Troca de senha obrigatoria."
+                        : "Login realizado com sucesso",
                     token = token,
                     idUsuario = usuario.idUsuario,
                     nmUsuario = usuario.nmUsuario,
                     dsLogin = usuario.dsLogin,
                     dsEmail = usuario.dsEmail,
-                    idPerfil = usuario.idPerfil
+                    idPerfil = usuario.idPerfil,
+                    primeiroAcesso = usuario.flPrimeiroAcesso
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"? Error during login: {ex.Message}");
+                _logger.LogError(ex, "Erro ao realizar login");
                 return BadRequest(new { mensagem = "Erro ao realizar login", erro = ex.Message });
             }
         }
 
         /// <summary>
-        /// Get current user info
+        /// Retorna dados do usuario autenticado pelo token.
         /// </summary>
         [Authorize]
         [HttpGet("me")]
@@ -166,20 +100,14 @@ namespace CPTMBack.Controllers
             try
             {
                 var userIdClaim = User.FindFirst("sub")?.Value;
-
                 if (!int.TryParse(userIdClaim, out var userId))
-                {
-                    return Unauthorized(new { mensagem = "Token inv�lido" });
-                }
+                    return Unauthorized(new { mensagem = "Token invalido" });
 
                 var usuario = _usuarioRepository.Get(userId);
-
                 if (usuario == null)
-                {
-                    return NotFound(new { mensagem = "Usu�rio n�o encontrado" });
-                }
+                    return NotFound(new { mensagem = "Usuario nao encontrado" });
 
-                var dto = new TB_USUARIODTO
+                return Ok(new TB_USUARIODTO
                 {
                     idUsuario = usuario.idUsuario,
                     nmUsuario = usuario.nmUsuario,
@@ -187,20 +115,21 @@ namespace CPTMBack.Controllers
                     dsEmail = usuario.dsEmail,
                     idPerfil = usuario.idPerfil,
                     flAtivo = usuario.flAtivo,
-                    dtCadastro = usuario.dtCadastro
-                };
-
-                return Ok(dto);
+                    flPrimeiroAcesso = usuario.flPrimeiroAcesso,
+                    dtUltimaTrocaSenha = usuario.dtUltimaTrocaSenha,
+                    dtCadastro = usuario.dtCadastro,
+                    dtAtualizacao = usuario.dtAtualizacao
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"? Error getting current user: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao obter dados do usu�rio", erro = ex.Message });
+                _logger.LogError(ex, "Erro ao obter dados do usuario autenticado");
+                return BadRequest(new { mensagem = "Erro ao obter dados do usuario", erro = ex.Message });
             }
         }
 
         /// <summary>
-        /// Refresh JWT token
+        /// Renova o token JWT.
         /// </summary>
         [Authorize]
         [HttpPost("refresh")]
@@ -209,22 +138,16 @@ namespace CPTMBack.Controllers
             try
             {
                 var userIdClaim = User.FindFirst("sub")?.Value;
-
                 if (!int.TryParse(userIdClaim, out var userId))
-                {
-                    return Unauthorized(new { mensagem = "Token inv�lido" });
-                }
+                    return Unauthorized(new { mensagem = "Token invalido" });
 
                 var usuario = _usuarioRepository.Get(userId);
-
                 if (usuario == null || !usuario.flAtivo)
-                {
-                    return Unauthorized(new { mensagem = "Usu�rio n�o encontrado ou inativo" });
-                }
+                    return Unauthorized(new { mensagem = "Usuario nao encontrado ou inativo" });
 
                 var newToken = _jwtTokenService.GenerateToken(usuario);
 
-                _logger.LogInformation($"? Token refreshed for user: {usuario.dsLogin}");
+                _logger.LogInformation("Token renovado para usuario: {Login}", usuario.dsLogin);
 
                 return Ok(new AuthResponseViewModel
                 {
@@ -234,13 +157,63 @@ namespace CPTMBack.Controllers
                     idUsuario = usuario.idUsuario,
                     nmUsuario = usuario.nmUsuario,
                     dsLogin = usuario.dsLogin,
-                    idPerfil = usuario.idPerfil
+                    dsEmail = usuario.dsEmail,
+                    idPerfil = usuario.idPerfil,
+                    primeiroAcesso = usuario.flPrimeiroAcesso
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"? Error refreshing token: {ex.Message}");
+                _logger.LogError(ex, "Erro ao renovar token");
                 return BadRequest(new { mensagem = "Erro ao renovar token", erro = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Criacao de conta restrita a administradores.
+        /// Usuarios novos devem ser criados pelo admin via /api/TB_USUARIO.
+        /// </summary>
+        [Authorize(Roles = "admin")]
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterViewModel model)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(model.nmUsuario) ||
+                    string.IsNullOrWhiteSpace(model.dsLogin) ||
+                    string.IsNullOrWhiteSpace(model.dsSenha))
+                    return BadRequest(new { mensagem = "Nome, login e senha sao obrigatorios" });
+
+                if (model.dsSenha != model.dsSenhaConfirm)
+                    return BadRequest(new { mensagem = "As senhas nao conferem" });
+
+                var existingUsers = _usuarioRepository.GetAll().ToList();
+                if (existingUsers.Any(u => u.dsLogin.ToLower() == model.dsLogin.ToLower()))
+                    return Conflict(new { mensagem = "Login ja existe" });
+
+                var senhaHash = _passwordHasher.HashPassword(null!, model.dsSenha);
+                var nextId = existingUsers.Any() ? existingUsers.Max(u => u.idUsuario) + 1 : 1;
+
+                var newUser = new TB_USUARIO(
+                    idUsuario: nextId,
+                    nmUsuario: model.nmUsuario,
+                    dsLogin: model.dsLogin,
+                    dsSenhaHash: senhaHash,
+                    idPerfil: model.idPerfil,
+                    dsEmail: model.dsEmail,
+                    flAtivo: true,
+                    flPrimeiroAcesso: true
+                );
+
+                _usuarioRepository.Add(newUser);
+                _logger.LogInformation("Usuario registrado via admin: {Login}", model.dsLogin);
+
+                return Ok(new { sucesso = true, mensagem = "Usuario registrado com sucesso", idUsuario = newUser.idUsuario });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao registrar usuario");
+                return BadRequest(new { mensagem = "Erro ao registrar usuario", erro = ex.Message });
             }
         }
     }
