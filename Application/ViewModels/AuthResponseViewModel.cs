@@ -14,6 +14,8 @@ namespace CPTMBack.Application.ViewModels
 
         public string? dsLogin { get; set; }
 
+        public string? dsEmail { get; set; }
+
         public int? idPerfil { get; set; }
     }
 }

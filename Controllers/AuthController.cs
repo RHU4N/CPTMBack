@@ -43,20 +43,20 @@ namespace CPTMBack.Controllers
                     string.IsNullOrWhiteSpace(model.dsLogin) ||
                     string.IsNullOrWhiteSpace(model.dsSenha))
                 {
-                    return BadRequest(new { mensagem = "Nome de usuário, login e senha são obrigatórios" });
+                    return BadRequest(new { mensagem = "Nome de usuï¿½rio, login e senha sï¿½o obrigatï¿½rios" });
                 }
 
                 // Validate password confirmation
                 if (model.dsSenha != model.dsSenhaConfirm)
                 {
-                    return BadRequest(new { mensagem = "As senhas não conferem" });
+                    return BadRequest(new { mensagem = "As senhas nï¿½o conferem" });
                 }
 
                 // Check if user already exists
                 var existingUsers = _usuarioRepository.GetAll();
                 if (existingUsers.Any(u => u.dsLogin.ToLower() == model.dsLogin.ToLower()))
                 {
-                    return Conflict(new { mensagem = "Usuário já existe" });
+                    return Conflict(new { mensagem = "Usuï¿½rio jï¿½ existe" });
                 }
 
                 // Hash password
@@ -80,14 +80,14 @@ namespace CPTMBack.Controllers
 
                 return Ok(new { 
                     sucesso = true,
-                    mensagem = "Usuário registrado com sucesso",
+                    mensagem = "Usuï¿½rio registrado com sucesso",
                     idUsuario = newUser.idUsuario
                 });
             }
             catch (Exception ex)
             {
                 _logger.LogError($"? Error registering user: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao registrar usuário", erro = ex.Message });
+                return BadRequest(new { mensagem = "Erro ao registrar usuï¿½rio", erro = ex.Message });
             }
         }
 
@@ -103,7 +103,7 @@ namespace CPTMBack.Controllers
                 // Validate input
                 if (string.IsNullOrWhiteSpace(model.dsLogin) || string.IsNullOrWhiteSpace(model.dsSenha))
                 {
-                    return BadRequest(new { mensagem = "Login e senha são obrigatórios" });
+                    return BadRequest(new { mensagem = "Login e senha sï¿½o obrigatï¿½rios" });
                 }
 
                 // Find user
@@ -113,14 +113,14 @@ namespace CPTMBack.Controllers
                 if (usuario == null)
                 {
                     _logger.LogWarning($"?? Login attempt with non-existent user: {model.dsLogin}");
-                    return Unauthorized(new { mensagem = "Usuário ou senha inválidos" });
+                    return Unauthorized(new { mensagem = "Usuï¿½rio ou senha invï¿½lidos" });
                 }
 
                 // Check if user is active
                 if (!usuario.flAtivo)
                 {
                     _logger.LogWarning($"?? Login attempt with inactive user: {model.dsLogin}");
-                    return Unauthorized(new { mensagem = "Usuário inativo" });
+                    return Unauthorized(new { mensagem = "Usuï¿½rio inativo" });
                 }
 
                 // Verify password
@@ -129,7 +129,7 @@ namespace CPTMBack.Controllers
                 if (result == PasswordVerificationResult.Failed)
                 {
                     _logger.LogWarning($"?? Failed login attempt: {model.dsLogin}");
-                    return Unauthorized(new { mensagem = "Usuário ou senha inválidos" });
+                    return Unauthorized(new { mensagem = "Usuï¿½rio ou senha invï¿½lidos" });
                 }
 
                 // Generate JWT token
@@ -145,6 +145,7 @@ namespace CPTMBack.Controllers
                     idUsuario = usuario.idUsuario,
                     nmUsuario = usuario.nmUsuario,
                     dsLogin = usuario.dsLogin,
+                    dsEmail = usuario.dsEmail,
                     idPerfil = usuario.idPerfil
                 });
             }
@@ -168,14 +169,14 @@ namespace CPTMBack.Controllers
 
                 if (!int.TryParse(userIdClaim, out var userId))
                 {
-                    return Unauthorized(new { mensagem = "Token inválido" });
+                    return Unauthorized(new { mensagem = "Token invï¿½lido" });
                 }
 
                 var usuario = _usuarioRepository.Get(userId);
 
                 if (usuario == null)
                 {
-                    return NotFound(new { mensagem = "Usuário não encontrado" });
+                    return NotFound(new { mensagem = "Usuï¿½rio nï¿½o encontrado" });
                 }
 
                 var dto = new TB_USUARIODTO
@@ -194,7 +195,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"? Error getting current user: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao obter dados do usuário", erro = ex.Message });
+                return BadRequest(new { mensagem = "Erro ao obter dados do usuï¿½rio", erro = ex.Message });
             }
         }
 
@@ -211,14 +212,14 @@ namespace CPTMBack.Controllers
 
                 if (!int.TryParse(userIdClaim, out var userId))
                 {
-                    return Unauthorized(new { mensagem = "Token inválido" });
+                    return Unauthorized(new { mensagem = "Token invï¿½lido" });
                 }
 
                 var usuario = _usuarioRepository.Get(userId);
 
                 if (usuario == null || !usuario.flAtivo)
                 {
-                    return Unauthorized(new { mensagem = "Usuário não encontrado ou inativo" });
+                    return Unauthorized(new { mensagem = "Usuï¿½rio nï¿½o encontrado ou inativo" });
                 }
 
                 var newToken = _jwtTokenService.GenerateToken(usuario);
