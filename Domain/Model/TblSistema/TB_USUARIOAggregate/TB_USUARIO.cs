@@ -100,6 +100,15 @@ namespace CPTMBack.Domain.Model.TblSistema.TB_USUARIOAggregate
             dtAtualizacao = DateTime.UtcNow;
         }
 
+        public void UpdateProfile(string nmUsuario, string? dsEmail, string? novoLogin)
+        {
+            this.nmUsuario = nmUsuario;
+            this.dsEmail = dsEmail;
+            if (!string.IsNullOrWhiteSpace(novoLogin))
+                dsLogin = novoLogin;
+            dtAtualizacao = DateTime.UtcNow;
+        }
+
         /// <summary>
         /// Conclui o primeiro acesso: atualiza senha, marca FL_PRIMEIRO_ACESSO = false e registra data da troca.
         /// </summary>
@@ -108,6 +117,14 @@ namespace CPTMBack.Domain.Model.TblSistema.TB_USUARIOAggregate
             dsSenhaHash = newPasswordHash;
             flPrimeiroAcesso = false;
             dtUltimaTrocaSenha = DateTime.UtcNow;
+            dtAtualizacao = DateTime.UtcNow;
+        }
+
+        public void ResetSenha(string tempPasswordHash)
+        {
+            dsSenhaHash = tempPasswordHash;
+            flPrimeiroAcesso = true;
+            dtUltimaTrocaSenha = null;
             dtAtualizacao = DateTime.UtcNow;
         }
     }

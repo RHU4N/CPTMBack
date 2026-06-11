@@ -275,7 +275,101 @@ namespace CPTMBack.Controllers
             }
         }
 
+        // PATCH /api/TB_USUARIO/{id}/redefinir-senha
+        [HttpPatch("{id}/redefinir-senha")]
+        [Authorize(Roles = "admin")]
+        public IActionResult RedefinirSenha(int id)
+        {
+            try
+            {
+                var usuario = _usuarioRepository.Get(id);
+                if (usuario == null)
+                    return NotFound(new { mensagem = "Usuario nao encontrado" });
+
+                var tempSenha = GerarSenhaTemporaria();
+                var hash = _passwordHasher.HashPassword(usuario, tempSenha);
+                usuario.ResetSenha(hash);
+                _usuarioRepository.Update(usuario);
+
+                var adminId = ObterIdUsuarioLogado();
+                RegistrarLog(adminId, "RESET_SENHA", "TB_USUARIO", id.ToString(), $"Admin redefiniu senha do usuario ID {id}");
+                _logger.LogInformation("Senha redefinida pelo admin para usuario {Id}", id);
+
+                return Ok(new { mensagem = "Senha redefinida com sucesso", senhaTemporaria = tempSenha });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao redefinir senha do usuario {Id}", id);
+                return BadRequest(new { mensagem = "Erro ao redefinir senha", erro = ex.Message });
+            }
+        }
+
+        // PATCH /api/TB_USUARIO/meu-perfil
+        [HttpPatch("meu-perfil")]
+        public IActionResult AtualizarMeuPerfil([FromBody] MeuPerfilDTO dto)
+        {
+            try
+            {
+                var userId = ObterIdUsuarioLogado();
+                if (userId == 0)
+                    return Unauthorized(new { mensagem = "Token invalido" });
+
+                var usuario = _usuarioRepository.Get(userId);
+                if (usuario == null)
+                    return NotFound(new { mensagem = "Usuario nao encontrado" });
+
+                if (!usuario.flAtivo)
+                    return Unauthorized(new { mensagem = "Usuario inativo" });
+
+                if (string.IsNullOrWhiteSpace(dto.nmUsuario))
+                    return BadRequest(new { mensagem = "Nome nao pode ser vazio" });
+
+                if (!string.IsNullOrWhiteSpace(dto.dsNovoLogin))
+                {
+                    var loginEmUso = _usuarioRepository.GetAll()
+                        .Any(u => u.idUsuario != userId && u.dsLogin.ToLower() == dto.dsNovoLogin.ToLower());
+                    if (loginEmUso)
+                        return Conflict(new { mensagem = "Login ja esta em uso por outro usuario" });
+                }
+
+                usuario.UpdateProfile(dto.nmUsuario, dto.dsEmail, dto.dsNovoLogin);
+                _usuarioRepository.Update(usuario);
+
+                RegistrarLog(userId, "EDICAO_PERFIL", "TB_USUARIO", userId.ToString(), $"Usuario ID {userId} atualizou o proprio perfil");
+                _logger.LogInformation("Perfil atualizado: usuario {Id}", userId);
+
+                return Ok(new
+                {
+                    mensagem = "Perfil atualizado com sucesso",
+                    nmUsuario = usuario.nmUsuario,
+                    dsLogin = usuario.dsLogin,
+                    dsEmail = usuario.dsEmail
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao atualizar perfil");
+                return BadRequest(new { mensagem = "Erro ao atualizar perfil", erro = ex.Message });
+            }
+        }
+
         // ===== HELPERS =====
+
+        private static string GerarSenhaTemporaria()
+        {
+            const string letras = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ";
+            const string digitos = "23456789";
+            var rng = Random.Shared;
+            var chars = new char[8];
+            chars[0] = letras[rng.Next(letras.Length)];
+            chars[1] = digitos[rng.Next(digitos.Length)];
+            for (int i = 2; i < 8; i++)
+            {
+                var pool = rng.Next(2) == 0 ? letras : digitos;
+                chars[i] = pool[rng.Next(pool.Length)];
+            }
+            return new string(chars.OrderBy(_ => rng.Next()).ToArray());
+        }
 
         private int ObterIdUsuarioLogado()
         {

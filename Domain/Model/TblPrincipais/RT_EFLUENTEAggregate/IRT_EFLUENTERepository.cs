@@ -8,5 +8,6 @@ namespace CPTMBack.Domain.Model.TblPrincipais.RT_EFLUENTEAggregate
         IEnumerable<RT_EFLUENTE> GetByRelObjectId(string relObjectId);
         bool Update(RT_EFLUENTE entity);
         bool Delete(int id);
+        int GetNextId();
     }
 }

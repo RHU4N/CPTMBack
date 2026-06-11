@@ -22,7 +22,7 @@ namespace CPTMBack.Domain.Model.TblPrincipais.RT_EFLUENTEAggregate
         [Column("DATA_SIZE")]
         public int? dataSize { get; private set; }
 
-        [Column("DATA")]
+        [Column("DATA", TypeName = "BLOB")]
         public byte[]? data { get; private set; }
 
         public RT_EFLUENTE()

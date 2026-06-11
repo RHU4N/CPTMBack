@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using CPTMBack.Infraestrutura;
 using CPTMBack.Infraestrutura.Repositories;
 using CPTMBack.Domain.Model.TblPrincipais.PT_EFLUENTEAggregate;
@@ -33,6 +34,18 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+
+// Garante que não há outra instância rodando antes de subir
+var currentPid = Environment.ProcessId;
+foreach (var proc in Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName))
+{
+    if (proc.Id != currentPid)
+    {
+        Console.WriteLine($"Encerrando instância anterior (PID {proc.Id})...");
+        proc.Kill(entireProcessTree: true);
+        proc.WaitForExit(3000);
+    }
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -196,41 +209,46 @@ using (var scope = app.Services.CreateScope())
         // Seed default users if none exist
         if (!context.TB_USUARIO.Any())
         {
+            // idUsuario = 0: valor sentinela do EF Core para Oracle Identity (deixa o banco gerar o ID)
             var adminUser = new TB_USUARIO(
-                idUsuario: 1,
+                idUsuario: 0,
                 nmUsuario: "Administrador",
                 dsLogin: "admin",
                 dsSenhaHash: "",
                 idPerfil: 1,
                 dsEmail: "admin@cptm.gov.br",
                 flAtivo: true,
-                flPrimeiroAcesso: false  // Usuarios seed ja possuem acesso direto
+                flPrimeiroAcesso: false
             );
-
             adminUser.UpdatePassword(passwordHasher.HashPassword(adminUser, "admin123"));
             context.TB_USUARIO.Add(adminUser);
 
             var operadorUser = new TB_USUARIO(
-                idUsuario: 2,
+                idUsuario: 0,
                 nmUsuario: "Operador Campo",
                 dsLogin: "operador",
                 dsSenhaHash: "",
                 idPerfil: 2,
                 dsEmail: "operador@cptm.gov.br",
                 flAtivo: true,
-                flPrimeiroAcesso: false  // Usuarios seed ja possuem acesso direto
+                flPrimeiroAcesso: false
             );
-
             operadorUser.UpdatePassword(passwordHasher.HashPassword(operadorUser, "operador123"));
             context.TB_USUARIO.Add(operadorUser);
 
             context.SaveChanges();
-            Console.WriteLine("? Seed users created successfully");
+            Console.WriteLine("✅ Seed users created: admin / operador");
+        }
+        else
+        {
+            Console.WriteLine($"ℹ️  TB_USUARIO already has {context.TB_USUARIO.Count()} user(s) — seed skipped");
         }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"? Error during migration/seed: {ex.Message}");
+        Console.WriteLine($"❌ Error during migration/seed: {ex.GetType().Name}: {ex.Message}");
+        if (ex.InnerException != null)
+            Console.WriteLine($"   Inner: {ex.InnerException.Message}");
     }
 }
 

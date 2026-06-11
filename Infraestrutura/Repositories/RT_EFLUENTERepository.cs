@@ -64,5 +64,11 @@ namespace CPTMBack.Infraestrutura.Repositories
                 return false;
             }
         }
+
+        public int GetNextId()
+        {
+            var all = _context.RT_EFLUENTE.ToList();
+            return all.Any() ? all.Max(a => a.attachmentId) + 1 : 1;
+        }
     }
 }

@@ -11,12 +11,12 @@ namespace CPTMBack.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Oracle-safe: add as nullable first, backfill, then add NOT NULL constraint
             migrationBuilder.AddColumn<bool>(
                 name: "FL_PRIMEIRO_ACESSO",
                 table: "TB_USUARIO",
                 type: "NUMBER(1)",
-                nullable: false,
-                defaultValue: true);
+                nullable: true);
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "DT_ULTIMA_TROCA_SENHA",
@@ -24,8 +24,11 @@ namespace CPTMBack.Migrations
                 type: "TIMESTAMP(7)",
                 nullable: true);
 
-            // Usuarios ja existentes nao devem ser forcados a trocar a senha
-            migrationBuilder.Sql("UPDATE TB_USUARIO SET FL_PRIMEIRO_ACESSO = 0");
+            // Usuarios ja existentes nao devem ser forcados a trocar senha
+            migrationBuilder.Sql("UPDATE TB_USUARIO SET FL_PRIMEIRO_ACESSO = 0 WHERE FL_PRIMEIRO_ACESSO IS NULL");
+
+            // Torna a coluna NOT NULL apos o backfill (Oracle exige que nao haja NULLs antes)
+            migrationBuilder.Sql("ALTER TABLE TB_USUARIO MODIFY FL_PRIMEIRO_ACESSO NUMBER(1) DEFAULT 0 NOT NULL");
         }
 
         /// <inheritdoc />

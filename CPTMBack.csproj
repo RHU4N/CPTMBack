@@ -6,6 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <Target Name="KillRunningInstance" BeforeTargets="Build">
+    <Exec Command="taskkill /F /IM CPTMBack.exe /T 2&gt;nul &amp; ping -n 3 127.0.0.1 &gt;nul" ContinueOnError="true" />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <PackageReference Include="Oracle.EntityFrameworkCore" Version="8.21.100" />

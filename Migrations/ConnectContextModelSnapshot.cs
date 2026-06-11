@@ -2602,7 +2602,7 @@ namespace CPTMBack.Migrations
                         .HasColumnName("CONTENT_TYPE");
 
                     b.Property<byte[]>("data")
-                        .HasColumnType("RAW(2000)")
+                        .HasColumnType("BLOB")
                         .HasColumnName("DATA");
 
                     b.Property<int?>("dataSize")
@@ -2721,9 +2721,17 @@ namespace CPTMBack.Migrations
                         .HasColumnType("TIMESTAMP(7)")
                         .HasColumnName("DT_CADASTRO");
 
+                    b.Property<DateTime?>("dtUltimaTrocaSenha")
+                        .HasColumnType("TIMESTAMP(7)")
+                        .HasColumnName("DT_ULTIMA_TROCA_SENHA");
+
                     b.Property<bool>("flAtivo")
                         .HasColumnType("NUMBER(1)")
                         .HasColumnName("FL_ATIVO");
+
+                    b.Property<bool>("flPrimeiroAcesso")
+                        .HasColumnType("NUMBER(1)")
+                        .HasColumnName("FL_PRIMEIRO_ACESSO");
 
                     b.Property<int>("idPerfil")
                         .HasColumnType("NUMBER(10)")
