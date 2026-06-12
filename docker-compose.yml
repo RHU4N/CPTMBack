@@ -23,7 +23,7 @@ services:
       start_period: 60s
     restart: unless-stopped
 
-  # .NET 8 API Service
+  # .NET 9 API Service
   api:
     build:
       context: .
