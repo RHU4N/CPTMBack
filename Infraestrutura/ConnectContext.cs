@@ -80,6 +80,15 @@ namespace CPTMBack.Infraestrutura
         {
             base.OnModelCreating(modelBuilder);
 
+            // Oracle EF Core 9 não suporta DbType.Boolean em SQL — mapeia bool → int (0/1)
+            var boolToInt = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<bool, int>(
+                v => v ? 1 : 0,
+                v => v != 0
+            );
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+                foreach (var prop in entityType.GetProperties().Where(p => p.ClrType == typeof(bool)))
+                    prop.SetValueConverter(boolToInt);
+
             // Precisão das coordenadas geográficas
             modelBuilder.Entity<PT_EFLUENTE>()
                 .Property(x => x.nrLatGrauDecimalWgs84)

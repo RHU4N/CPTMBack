@@ -191,7 +191,7 @@ namespace CPTMBack.Domain.Model.TblPrincipais.PT_EFLUENTEAggregate
         public DateTime? dtDataDoCadastramento { get; private set; }
 
         [Column("HR_HORA_DO_CADASTRAMENTO")]
-        [MaxLength(5)]
+        [MaxLength(8)]
         public string? hrHorasDoCadastramento { get; private set; }
 
         // === 47-51. Autores e responsável técnico do cadastro ===

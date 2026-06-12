@@ -195,7 +195,8 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine("? Migrations applied successfully");
 
         // Seed default users if none exist
-        if (!context.TB_USUARIO.Any())
+        // Nota: context.Any() gera True/False literal no Oracle EF Core 9 (ORA-00904); Count() é seguro
+        if (context.TB_USUARIO.Count() == 0)
         {
             // idUsuario = 0: valor sentinela do EF Core para Oracle Identity (deixa o banco gerar o ID)
             var adminUser = new TB_USUARIO(

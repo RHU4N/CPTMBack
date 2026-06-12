@@ -3,6 +3,7 @@ using System;
 using CPTMBack.Infraestrutura;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Oracle.EntityFrameworkCore.Metadata;
 
@@ -11,9 +12,11 @@ using Oracle.EntityFrameworkCore.Metadata;
 namespace CPTMBack.Migrations
 {
     [DbContext(typeof(ConnectContext))]
-    partial class ConnectContextModelSnapshot : ModelSnapshot
+    [Migration("20260612174556_FixHoraCadastramento_MaxLength8")]
+    partial class FixHoraCadastramento_MaxLength8
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
