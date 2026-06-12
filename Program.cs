@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using CPTMBack.Infraestrutura;
 using CPTMBack.Infraestrutura.Repositories;
 using CPTMBack.Domain.Model.TblPrincipais.PT_EFLUENTEAggregate;
@@ -35,18 +34,6 @@ using Microsoft.EntityFrameworkCore;
 using System.Text;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 
-// Garante que não há outra instância rodando antes de subir
-var currentPid = Environment.ProcessId;
-foreach (var proc in Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName))
-{
-    if (proc.Id != currentPid)
-    {
-        Console.WriteLine($"Encerrando instância anterior (PID {proc.Id})...");
-        proc.Kill(entireProcessTree: true);
-        proc.WaitForExit(3000);
-    }
-}
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Kestrel to listen on HTTP:5000 only (disable HTTPS to avoid dev certificate issues)
@@ -60,6 +47,7 @@ var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["SecretKey"] ?? "your_super_secret_jwt_key_here_min_32_characters";
 var issuer = jwtSettings["Issuer"] ?? "CPTMBackend";
 var audience = jwtSettings["Audience"] ?? "CPTMApp";
+var expiresMinutes = int.TryParse(jwtSettings["ExpiresMinutes"], out var em) ? em : 60;
 
 // ===== DATABASE CONFIGURATION =====
 var connectionString = ResolveConnectionString(builder.Configuration);
@@ -123,8 +111,8 @@ builder.Services.AddAuthentication(x =>
 builder.Services.AddScoped<IPasswordHasher<TB_USUARIO>, PasswordHasher<TB_USUARIO>>();
 
 // ===== JWT SERVICE =====
-builder.Services.AddScoped<IJwtTokenService>(sp => 
-    new JwtTokenService(secretKey, issuer, audience)
+builder.Services.AddScoped<IJwtTokenService>(sp =>
+    new JwtTokenService(secretKey, issuer, audience, expiresMinutes)
 );
 
 // ===== REPOSITORIES INJECTION =====
@@ -253,22 +241,8 @@ using (var scope = app.Services.CreateScope())
 }
 
 // ===== MIDDLEWARE =====
-// Always enable Swagger/UI (served at root) for easier local/dev access
-app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "CPTM API v1");
-    c.RoutePrefix = string.Empty; // serve UI at http://<host>/: root
-});
 
-// Do not force HTTPS redirection in local/dev to avoid redirecting to unavailable HTTPS port
-app.UseCors("AllowFrontend");
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-
-// Global exception logging middleware to capture errors (especially for Swagger JSON generation)
+// Global exception handler must be first so it wraps all subsequent middleware
 app.Use(async (context, next) =>
 {
     try
@@ -277,30 +251,32 @@ app.Use(async (context, next) =>
     }
     catch (Exception ex)
     {
-        // Log exception
         var logger = app.Services.GetService(typeof(ILogger<Program>)) as ILogger<Program>;
-        if (logger != null)
-        {
-            logger.LogError(ex, "Unhandled exception processing request {Path}", context.Request.Path);
-        }
-        else
-        {
-            Console.WriteLine(ex.ToString());
-        }
+        logger?.LogError(ex, "Unhandled exception processing request {Path}", context.Request.Path);
 
-        // If request is for swagger JSON, return exception details to help debugging
-        if (context.Request.Path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase))
-        {
-            context.Response.StatusCode = 500;
-            context.Response.ContentType = "text/plain";
-            await context.Response.WriteAsync(ex.ToString());
-            return;
-        }
-
-        // Re-throw for other handlers (will be caught by default handlers)
-        throw;
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync("{\"mensagem\":\"Erro interno do servidor.\"}");
     }
 });
+
+// Swagger only in Development
+var swaggerEnabled = builder.Configuration.GetValue<bool?>("Swagger:Enabled") ?? app.Environment.IsDevelopment();
+if (swaggerEnabled)
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "CPTM API v1");
+        c.RoutePrefix = string.Empty;
+    });
+}
+
+app.UseCors("AllowFrontend");
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
 
 app.Run();
 

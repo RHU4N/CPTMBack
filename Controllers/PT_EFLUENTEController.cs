@@ -28,6 +28,13 @@ namespace CPTMBack.Controllers
             try
             {
                 var efluentes = _efluenteRepository.GetAll();
+
+                if (!User.IsInRole("admin"))
+                {
+                    var dsLogin = User.FindFirst("dsLogin")?.Value ?? string.Empty;
+                    efluentes = efluentes.Where(e => e.txAutorPfDoCadastro == dsLogin);
+                }
+
                 var dtos = efluentes.Select(MapToDTO).ToList();
                 return Ok(new { dados = dtos, total = dtos.Count });
             }

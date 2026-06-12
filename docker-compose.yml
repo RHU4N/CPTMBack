@@ -16,11 +16,11 @@ services:
     networks:
       - cptm_network
     healthcheck:
-      test: ["CMD", "sqlplus", "-L", "system/root@localhost:1521/XEPDB1", "AS", "sysdba", "SELECT", "1", "FROM", "dual"]
-      interval: 10s
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/1521' 2>/dev/null && echo OK || exit 1"]
+      interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 60s
     restart: unless-stopped
 
   # .NET 8 API Service
@@ -31,36 +31,29 @@ services:
     container_name: cptm_api
     ports:
       - "5000:5000"
-      - "5001:5001"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:5000;https://+:5001
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
       DOTNET_RUNNING_IN_CONTAINER: "true"
 
-      # Oracle Configuration
-      ORACLE_HOST: oracle
-      ORACLE_PORT: 1521
-      ORACLE_SID: XEPDB1
-      ORACLE_USER: CPTM
-      ORACLE_PASSWORD: root
+      # Oracle — ASP.NET Core maps ConnectionStrings__LocalConnection -> ConnectionStrings:LocalConnection
+      ConnectionStrings__LocalConnection: "Data Source=oracle:1521/XEPDB1;User ID=CPTM;Password=root;"
 
-      # JWT Configuration
-      JWT_SECRET_KEY: your_super_secret_jwt_key_here_min_32_characters
-      JWT_ISSUER: CPTMBackend
-      JWT_AUDIENCE: CPTMApp
-      JWT_EXPIRATION_MINUTES: 60
+      # JWT — ASP.NET Core maps Jwt__SecretKey -> Jwt:SecretKey
+      Jwt__SecretKey: "df9e4cccd2384e6a7d095ec9525dd55df3ea15508f7054ecff238a9d28767b26"
+      Jwt__Issuer: "cptm-api"
+      Jwt__Audience: "cptm-web"
+      Jwt__ExpiresMinutes: "120"
 
       # Logging
-      LOG_LEVEL: Information
+      Logging__LogLevel__Default: "Warning"
+      Logging__LogLevel__Microsoft.AspNetCore: "Warning"
     depends_on:
       oracle:
         condition: service_healthy
-    volumes:
-      - .:/app
     networks:
       - cptm_network
     restart: unless-stopped
-    command: /bin/bash -c "dotnet restore && dotnet build && dotnet run"
 
   # pgAdmin (Optional - for database visualization)
   # Uncomment if you want a visual database tool

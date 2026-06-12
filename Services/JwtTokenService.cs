@@ -16,13 +16,14 @@ namespace CPTMBack.Services
         private readonly string _secretKey;
         private readonly string _issuer;
         private readonly string _audience;
-        private const int ExpirationMinutes = 60;
+        private readonly int _expirationMinutes;
 
-        public JwtTokenService(string secretKey, string issuer, string audience)
+        public JwtTokenService(string secretKey, string issuer, string audience, int expirationMinutes = 60)
         {
             _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey));
             _issuer = issuer ?? throw new ArgumentNullException(nameof(issuer));
             _audience = audience ?? throw new ArgumentNullException(nameof(audience));
+            _expirationMinutes = expirationMinutes > 0 ? expirationMinutes : 60;
         }
 
         public string GenerateToken(TB_USUARIO usuario)
@@ -32,7 +33,7 @@ namespace CPTMBack.Services
 
             var key = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(_secretKey));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var expiresAtUtc = DateTime.UtcNow.AddMinutes(ExpirationMinutes);
+            var expiresAtUtc = DateTime.UtcNow.AddMinutes(_expirationMinutes);
 
             var claims = new[]
             {

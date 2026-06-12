@@ -164,6 +164,41 @@ namespace CPTMBack.Controllers
             }
         }
 
+        // PATCH /api/TB_USUARIO/{id}/trocar-login
+        [HttpPatch("{id}/trocar-login")]
+        [Authorize(Roles = "admin")]
+        public IActionResult TrocarLogin(int id, [FromBody] TrocarLoginDTO dto)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(dto.novoLogin))
+                    return BadRequest(new { mensagem = "Login nao pode ser vazio" });
+
+                var usuario = _usuarioRepository.Get(id);
+                if (usuario == null)
+                    return NotFound(new { mensagem = "Usuario nao encontrado" });
+
+                var todos = _usuarioRepository.GetAll().ToList();
+                if (todos.Any(u => u.idUsuario != id && u.dsLogin.ToLower() == dto.novoLogin.ToLower()))
+                    return Conflict(new { mensagem = "Login ja em uso por outro usuario" });
+
+                usuario.UpdateProfile(usuario.nmUsuario, usuario.dsEmail, dto.novoLogin);
+                _usuarioRepository.Update(usuario);
+
+                var adminId = ObterIdUsuarioLogado();
+                RegistrarLog(adminId, "TROCA_LOGIN", "TB_USUARIO", id.ToString(), $"Admin trocou login do usuario ID {id} para '{dto.novoLogin}'");
+                _logger.LogInformation("Login trocado para usuario {Id}: {Login}", id, dto.novoLogin);
+
+                var perfis = _perfilRepository.GetAll().ToList();
+                return Ok(new { mensagem = "Login alterado com sucesso", dados = MapToDTO(usuario, perfis) });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao trocar login do usuario {Id}", id);
+                return BadRequest(new { mensagem = "Erro ao trocar login", erro = ex.Message });
+            }
+        }
+
         // PATCH /api/TB_USUARIO/{id}/desativar
         [HttpPatch("{id}/desativar")]
         [Authorize(Roles = "admin")]
@@ -324,15 +359,7 @@ namespace CPTMBack.Controllers
                 if (string.IsNullOrWhiteSpace(dto.nmUsuario))
                     return BadRequest(new { mensagem = "Nome nao pode ser vazio" });
 
-                if (!string.IsNullOrWhiteSpace(dto.dsNovoLogin))
-                {
-                    var loginEmUso = _usuarioRepository.GetAll()
-                        .Any(u => u.idUsuario != userId && u.dsLogin.ToLower() == dto.dsNovoLogin.ToLower());
-                    if (loginEmUso)
-                        return Conflict(new { mensagem = "Login ja esta em uso por outro usuario" });
-                }
-
-                usuario.UpdateProfile(dto.nmUsuario, dto.dsEmail, dto.dsNovoLogin);
+                usuario.UpdateInfo(dto.nmUsuario, usuario.dsEmail);
                 _usuarioRepository.Update(usuario);
 
                 RegistrarLog(userId, "EDICAO_PERFIL", "TB_USUARIO", userId.ToString(), $"Usuario ID {userId} atualizou o proprio perfil");
