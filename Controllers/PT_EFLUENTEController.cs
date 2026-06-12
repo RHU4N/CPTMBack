@@ -1,6 +1,7 @@
 using CPTMBack.Application.ViewModels;
 using CPTMBack.Domain.DTOs;
 using CPTMBack.Domain.Model.TblPrincipais.PT_EFLUENTEAggregate;
+using CPTMBack.Domain.Model.TblSistema.TB_LOG_ACAOAggregate;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,13 +13,16 @@ namespace CPTMBack.Controllers
     public class PT_EFLUENTEController : ControllerBase
     {
         private readonly IPT_EFLUENTERepository _efluenteRepository;
+        private readonly ITB_LOG_ACAORepository _logRepository;
         private readonly ILogger<PT_EFLUENTEController> _logger;
 
         public PT_EFLUENTEController(
             IPT_EFLUENTERepository efluenteRepository,
+            ITB_LOG_ACAORepository logRepository,
             ILogger<PT_EFLUENTEController> logger)
         {
             _efluenteRepository = efluenteRepository;
+            _logRepository = logRepository;
             _logger = logger;
         }
 
@@ -78,6 +82,7 @@ namespace CPTMBack.Controllers
                 var efluente = MapFromViewModel(model);
                 _efluenteRepository.Add(efluente);
 
+                RegistrarLog("CRIACAO_INSPECAO", "PT_EFLUENTE", model.pkCdMeioAmbienteCptm);
                 _logger.LogInformation("Efluente criado: {Id}", model.pkCdMeioAmbienteCptm);
                 return CreatedAtAction(nameof(GetById), new { id = model.pkCdMeioAmbienteCptm }, MapToDTO(efluente));
             }
@@ -174,6 +179,7 @@ namespace CPTMBack.Controllers
                 );
 
                 _efluenteRepository.Update(efluente);
+                RegistrarLog("ATUALIZACAO_INSPECAO", "PT_EFLUENTE", id);
                 _logger.LogInformation("Efluente atualizado: {Id}", id);
                 return Ok(new { mensagem = "Efluente atualizado com sucesso", dados = MapToDTO(efluente) });
             }
@@ -195,6 +201,7 @@ namespace CPTMBack.Controllers
                     return NotFound(new { mensagem = "Efluente não encontrado" });
 
                 _efluenteRepository.Delete(id);
+                RegistrarLog("EXCLUSAO_INSPECAO", "PT_EFLUENTE", id);
                 _logger.LogInformation("Efluente deletado: {Id}", id);
                 return Ok(new { mensagem = "Efluente deletado com sucesso" });
             }
@@ -202,6 +209,28 @@ namespace CPTMBack.Controllers
             {
                 _logger.LogError("Erro ao deletar efluente {Id}: {Message}", id, ex.Message);
                 return BadRequest(new { mensagem = "Erro ao deletar efluente", erro = ex.Message });
+            }
+        }
+
+        private int ObterIdUsuarioLogado()
+        {
+            var claim = User.FindFirst("sub")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            return int.TryParse(claim, out var id) ? id : 0;
+        }
+
+        private void RegistrarLog(string acao, string tabela, string? idRegistro)
+        {
+            try
+            {
+                var userId = ObterIdUsuarioLogado();
+                var logs = _logRepository.GetAll();
+                var nextId = logs.Any() ? logs.Max(l => l.idLog) + 1 : 1;
+                var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+                _logRepository.Add(new TB_LOG_ACAO(nextId, userId, acao, tabela, idRegistro, DateTime.UtcNow, ip));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao registrar log de auditoria");
             }
         }
 

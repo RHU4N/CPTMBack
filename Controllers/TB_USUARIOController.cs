@@ -87,11 +87,9 @@ namespace CPTMBack.Controllers
                     string.IsNullOrWhiteSpace(dto.dsSenha))
                     return BadRequest(new { mensagem = "Nome, login e senha sao obrigatorios" });
 
-                if (dto.dsSenha.Length < 8)
-                    return BadRequest(new { mensagem = "A senha deve ter no minimo 8 caracteres" });
-
-                if (!dto.dsSenha.Any(char.IsLetter) || !dto.dsSenha.Any(char.IsDigit))
-                    return BadRequest(new { mensagem = "A senha deve conter letras e numeros" });
+                var senhaErro = ValidarForcaSenha(dto.dsSenha);
+                if (senhaErro != null)
+                    return BadRequest(new { mensagem = senhaErro });
 
                 var todos = _usuarioRepository.GetAll().ToList();
 
@@ -283,11 +281,9 @@ namespace CPTMBack.Controllers
                 if (dto.dsNovaSenha != dto.dsNovaSenhaConfirm)
                     return BadRequest(new { mensagem = "As senhas nao conferem" });
 
-                if (dto.dsNovaSenha.Length < 8)
-                    return BadRequest(new { mensagem = "A nova senha deve ter no minimo 8 caracteres" });
-
-                if (!dto.dsNovaSenha.Any(char.IsLetter) || !dto.dsNovaSenha.Any(char.IsDigit))
-                    return BadRequest(new { mensagem = "A nova senha deve conter letras e numeros" });
+                var senhaErro = ValidarForcaSenha(dto.dsNovaSenha);
+                if (senhaErro != null)
+                    return BadRequest(new { mensagem = senhaErro });
 
                 var verificacao = _passwordHasher.VerifyHashedPassword(usuario, usuario.dsSenhaHash, dto.dsSenhaAtual);
                 if (verificacao == PasswordVerificationResult.Failed)
@@ -384,18 +380,41 @@ namespace CPTMBack.Controllers
 
         private static string GerarSenhaTemporaria()
         {
-            const string letras = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ";
-            const string digitos = "23456789";
+            const string lower = "abcdefghjkmnpqrstuvwxyz";
+            const string upper = "ABCDEFGHJKMNPQRSTUVWXYZ";
+            const string digits = "23456789";
+            const string special = "@#!$%&";
+            const string all = lower + upper + digits + special;
+
             var rng = Random.Shared;
-            var chars = new char[8];
-            chars[0] = letras[rng.Next(letras.Length)];
-            chars[1] = digitos[rng.Next(digitos.Length)];
-            for (int i = 2; i < 8; i++)
-            {
-                var pool = rng.Next(2) == 0 ? letras : digitos;
-                chars[i] = pool[rng.Next(pool.Length)];
-            }
+            var chars = new char[10];
+
+            // Garantir pelo menos um de cada tipo (política RNF14)
+            chars[0] = lower[rng.Next(lower.Length)];
+            chars[1] = upper[rng.Next(upper.Length)];
+            chars[2] = digits[rng.Next(digits.Length)];
+            chars[3] = special[rng.Next(special.Length)];
+
+            for (int i = 4; i < 10; i++)
+                chars[i] = all[rng.Next(all.Length)];
+
             return new string(chars.OrderBy(_ => rng.Next()).ToArray());
+        }
+
+        // Valida política de senha forte (RNF14)
+        private static string? ValidarForcaSenha(string senha)
+        {
+            if (senha.Length < 8)
+                return "A senha deve ter no minimo 8 caracteres";
+            if (!senha.Any(char.IsLower))
+                return "A senha deve conter pelo menos uma letra minuscula";
+            if (!senha.Any(char.IsUpper))
+                return "A senha deve conter pelo menos uma letra maiuscula";
+            if (!senha.Any(char.IsDigit))
+                return "A senha deve conter pelo menos um numero";
+            if (senha.All(c => char.IsLetterOrDigit(c)))
+                return "A senha deve conter pelo menos um caractere especial (ex: @, #, !, $)";
+            return null;
         }
 
         private int ObterIdUsuarioLogado()
