@@ -27,6 +27,7 @@ using CPTMBack.Domain.Model.TblSistema.TB_USUARIOAggregate;
 using CPTMBack.Domain.Model.TblSistema.TB_LOG_ACAOAggregate;
 using CPTMBack.Domain.Model.TblSistema.TB_LOG_SINCRONIZACAOAggregate;
 using CPTMBack.Services;
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
@@ -85,6 +86,9 @@ builder.Services.AddCors(options =>
 });
 
 // ===== JWT AUTHENTICATION =====
+// Prevent JwtSecurityTokenHandler from remapping standard JWT claims (e.g. "sub" → NameIdentifier).
+// Without this, User.FindFirst("sub") returns null because the claim is silently renamed.
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 var key = Encoding.ASCII.GetBytes(secretKey);
 
 builder.Services.AddAuthentication(x =>

@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <Target Name="KillRunningInstance" BeforeTargets="Build">
-    <Exec Command="taskkill /F /IM CPTMBack.exe /T 2&gt;nul &amp; ping -n 3 127.0.0.1 &gt;nul" ContinueOnError="true" />
+    <Exec Command="taskkill /F /IM CPTMBack.exe /T 2&gt;nul &amp; ping -n 4 127.0.0.1 &gt;nul" ContinueOnError="true" />
   </Target>
 
   <ItemGroup>

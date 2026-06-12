@@ -31,6 +31,12 @@ namespace CPTMBack.Infraestrutura.Repositories
         {
             try
             {
+                // Detach any tracked instance with the same PK to avoid EF Core tracking conflict
+                var tracked = _context.ChangeTracker.Entries<PT_EFLUENTE>()
+                    .FirstOrDefault(e => e.Entity.pkCdMeioAmbienteCptm == entity.pkCdMeioAmbienteCptm);
+                if (tracked != null)
+                    tracked.State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+
                 _context.PT_EFLUENTE.Update(entity);
                 _context.SaveChanges();
                 return true;

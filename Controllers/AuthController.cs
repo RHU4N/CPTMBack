@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using CPTMBack.Application.ViewModels;
 using CPTMBack.Domain.DTOs;
 using CPTMBack.Domain.Model.TblSistema.TB_USUARIOAggregate;
@@ -99,7 +100,9 @@ namespace CPTMBack.Controllers
         {
             try
             {
-                var userIdClaim = User.FindFirst("sub")?.Value;
+                // .NET 9 AddJwtBearer usa JsonWebTokenHandler — "sub" vira ClaimTypes.NameIdentifier
+                var userIdClaim = User.FindFirst("sub")?.Value
+                                  ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!int.TryParse(userIdClaim, out var userId))
                     return Unauthorized(new { mensagem = "Token invalido" });
 
@@ -137,7 +140,9 @@ namespace CPTMBack.Controllers
         {
             try
             {
-                var userIdClaim = User.FindFirst("sub")?.Value;
+                // .NET 9 AddJwtBearer usa JsonWebTokenHandler — "sub" vira ClaimTypes.NameIdentifier
+                var userIdClaim = User.FindFirst("sub")?.Value
+                                  ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!int.TryParse(userIdClaim, out var userId))
                     return Unauthorized(new { mensagem = "Token invalido" });
 
