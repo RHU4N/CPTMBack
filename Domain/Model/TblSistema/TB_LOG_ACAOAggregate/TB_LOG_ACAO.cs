@@ -8,6 +8,7 @@ namespace CPTMBack.Domain.Model.TblSistema.TB_LOG_ACAOAggregate
     {
         [Key]
         [Column("ID_LOG")]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int idLog { get; private set; }
 
         [Column("ID_USUARIO")]
@@ -35,7 +36,6 @@ namespace CPTMBack.Domain.Model.TblSistema.TB_LOG_ACAOAggregate
         }
 
         public TB_LOG_ACAO(
-            int idLog,
             int idUsuario,
             string dsAcao,
             string nmTabela,
@@ -43,7 +43,6 @@ namespace CPTMBack.Domain.Model.TblSistema.TB_LOG_ACAOAggregate
             DateTime? dtAcao = null,
             string? dsIp = null)
         {
-            this.idLog = idLog;
             this.idUsuario = idUsuario;
             this.dsAcao = dsAcao;
             this.nmTabela = nmTabela;

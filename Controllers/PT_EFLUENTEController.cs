@@ -223,10 +223,8 @@ namespace CPTMBack.Controllers
             try
             {
                 var userId = ObterIdUsuarioLogado();
-                var logs = _logRepository.GetAll();
-                var nextId = logs.Any() ? logs.Max(l => l.idLog) + 1 : 1;
                 var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
-                _logRepository.Add(new TB_LOG_ACAO(nextId, userId, acao, tabela, idRegistro, DateTime.UtcNow, ip));
+                _logRepository.Add(new TB_LOG_ACAO(userId, acao, tabela, idRegistro, DateTime.UtcNow, ip));
             }
             catch (Exception ex)
             {

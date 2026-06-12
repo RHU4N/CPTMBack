@@ -427,12 +427,9 @@ namespace CPTMBack.Controllers
         {
             try
             {
-                var logs = _logRepository.GetAll();
-                var nextLogId = logs.Any() ? logs.Max(l => l.idLog) + 1 : 1;
                 var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
 
                 var log = new TB_LOG_ACAO(
-                    idLog: nextLogId,
                     idUsuario: idUsuario > 0 ? idUsuario : 0,
                     dsAcao: acao,
                     nmTabela: tabela,

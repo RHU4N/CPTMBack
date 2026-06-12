@@ -8,6 +8,7 @@ namespace CPTMBack.Domain.Model.TblSistema.TB_LOG_SINCRONIZACAOAggregate
     {
         [Key]
         [Column("ID_LOG")]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int idLog { get; private set; }
 
         [Column("ID_USUARIO")]
@@ -28,13 +29,11 @@ namespace CPTMBack.Domain.Model.TblSistema.TB_LOG_SINCRONIZACAOAggregate
         }
 
         public TB_LOG_SINCRONIZACAO(
-            int idLog,
             int idUsuario,
             string dsStatus,
             DateTime? dtSincronizacao = null,
             string? dsMensagem = null)
         {
-            this.idLog = idLog;
             this.idUsuario = idUsuario;
             this.dsStatus = dsStatus;
             this.dtSincronizacao = dtSincronizacao ?? DateTime.Now;

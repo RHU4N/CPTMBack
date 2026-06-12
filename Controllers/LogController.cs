@@ -36,6 +36,7 @@ namespace CPTMBack.Controllers
         [Authorize(Roles = "admin")]
         public IActionResult GetLogsAcao(
             [FromQuery] int? idUsuario = null,
+            [FromQuery] string? dsLogin = null,
             [FromQuery] string? dsAcao = null,
             [FromQuery] string? nmTabela = null,
             [FromQuery] DateTime? dtInicio = null,
@@ -49,6 +50,15 @@ namespace CPTMBack.Controllers
 
                 if (idUsuario.HasValue)
                     logs = logs.Where(l => l.idUsuario == idUsuario.Value);
+
+                if (!string.IsNullOrWhiteSpace(dsLogin))
+                {
+                    var ids = _context.TB_USUARIO.AsNoTracking()
+                        .Where(u => u.dsLogin.ToUpper().Contains(dsLogin.ToUpper()))
+                        .Select(u => u.idUsuario)
+                        .ToList();
+                    logs = logs.Where(l => ids.Contains(l.idUsuario));
+                }
 
                 if (!string.IsNullOrWhiteSpace(dsAcao))
                     logs = logs.Where(l => l.dsAcao.ToUpper().Contains(dsAcao.ToUpper()));
@@ -101,6 +111,7 @@ namespace CPTMBack.Controllers
         [Authorize(Roles = "admin")]
         public IActionResult GetLogsSincronizacao(
             [FromQuery] int? idUsuario = null,
+            [FromQuery] string? dsLogin = null,
             [FromQuery] string? dsStatus = null,
             [FromQuery] DateTime? dtInicio = null,
             [FromQuery] DateTime? dtFim = null,
@@ -113,6 +124,15 @@ namespace CPTMBack.Controllers
 
                 if (idUsuario.HasValue)
                     logs = logs.Where(l => l.idUsuario == idUsuario.Value);
+
+                if (!string.IsNullOrWhiteSpace(dsLogin))
+                {
+                    var ids = _context.TB_USUARIO.AsNoTracking()
+                        .Where(u => u.dsLogin.ToUpper().Contains(dsLogin.ToUpper()))
+                        .Select(u => u.idUsuario)
+                        .ToList();
+                    logs = logs.Where(l => ids.Contains(l.idUsuario));
+                }
 
                 if (!string.IsNullOrWhiteSpace(dsStatus))
                     logs = logs.Where(l => l.dsStatus.ToUpper().Contains(dsStatus.ToUpper()));
@@ -167,11 +187,7 @@ namespace CPTMBack.Controllers
                 if (string.IsNullOrWhiteSpace(dto?.dsStatus))
                     return BadRequest(new { mensagem = "Status é obrigatório" });
 
-                var logs = _logSyncRepository.GetAll();
-                var nextId = logs.Any() ? logs.Max(l => l.idLog) + 1 : 1;
-
                 var log = new TB_LOG_SINCRONIZACAO(
-                    idLog: nextId,
                     idUsuario: userId,
                     dsStatus: dto.dsStatus.Trim(),
                     dtSincronizacao: DateTime.UtcNow,
@@ -181,7 +197,7 @@ namespace CPTMBack.Controllers
                 _logSyncRepository.Add(log);
                 _logger.LogInformation("Sync log registrado: {Status} | usuario {Id}", dto.dsStatus, userId);
 
-                return Ok(new { sucesso = true, idLog = nextId });
+                return Ok(new { sucesso = true, idLog = log.idLog });
             }
             catch (Exception ex)
             {
