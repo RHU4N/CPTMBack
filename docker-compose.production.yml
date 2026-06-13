@@ -1,0 +1,78 @@
+# docker-compose de producao — Azure VM
+# Use: cp .env.production .env && docker compose -f docker-compose.production.yml up -d
+#
+# Variaveis obrigatorias no .env:
+#   ORACLE_PASSWORD   — senha do Oracle (usada para SYS e para o schema CPTM)
+#   JWT_SECRET_KEY    — chave JWT >= 32 caracteres (gere com: openssl rand -hex 32)
+#   FRONTEND_URL      — URL do Vercel, ex: https://cptm-app.vercel.app
+
+services:
+
+  # ── Oracle Database ──────────────────────────────────────────────
+  oracle:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: cptm_oracle
+    # Oracle NAO fica exposto externamente — apenas acessivel dentro da rede Docker.
+    # Para acesso de emergencia: docker exec -it cptm_oracle sqlplus CPTM/<senha>@//localhost:1521/XEPDB1
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
+      ORACLE_CHARACTERSET: AL32UTF8
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+      # init-oracle.sh usa ORACLE_PASSWORD para criar o schema CPTM (substitui init-oracle.sql)
+      - ./init-oracle.sh:/container-entrypoint-initdb.d/01_create_cptm_user.sh:ro
+    networks:
+      - cptm_network
+    healthcheck:
+      test: ["CMD-SHELL", "echo EXIT | sqlplus -s CPTM/$${ORACLE_PASSWORD}@//localhost:1521/XEPDB1 > /dev/null 2>&1"]
+      interval: 20s
+      timeout: 10s
+      retries: 20
+      start_period: 180s
+    restart: unless-stopped
+
+  # ── .NET 9 API ───────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cptm_api
+    ports:
+      - "5000:5000"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DOTNET_RUNNING_IN_CONTAINER: "true"
+
+      # Conexao Oracle via rede Docker interna
+      ConnectionStrings__LocalConnection: "Data Source=oracle:1521/XEPDB1;User ID=CPTM;Password=${ORACLE_PASSWORD};"
+
+      # JWT
+      Jwt__SecretKey: ${JWT_SECRET_KEY}
+      Jwt__Issuer: "cptm-api"
+      Jwt__Audience: "cptm-web"
+      Jwt__ExpiresMinutes: "120"
+
+      # CORS — aponta para o dominio do Vercel
+      Cors__AllowedOrigins__0: ${FRONTEND_URL}
+
+      # Logs reduzidos em producao
+      Logging__LogLevel__Default: "Warning"
+      Logging__LogLevel__Microsoft.AspNetCore: "Warning"
+    volumes:
+      - api_keys:/root/.aspnet/DataProtection-Keys
+    depends_on:
+      oracle:
+        condition: service_healthy
+    networks:
+      - cptm_network
+    restart: unless-stopped
+
+networks:
+  cptm_network:
+    driver: bridge
+
+volumes:
+  oracle_data:
+    driver: local
+  api_keys:
+    driver: local
