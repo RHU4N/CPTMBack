@@ -102,7 +102,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao listar logs de ação");
-                return BadRequest(new { mensagem = "Erro ao recuperar logs de ação", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível recuperar os logs. Tente novamente." });
             }
         }
 
@@ -170,7 +170,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao listar logs de sincronização");
-                return BadRequest(new { mensagem = "Erro ao recuperar logs de sincronização", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível recuperar os logs de sincronização. Tente novamente." });
             }
         }
 
@@ -202,7 +202,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao registrar log de sincronização");
-                return BadRequest(new { mensagem = "Erro ao registrar log", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível registrar o log. Tente novamente." });
             }
         }
 

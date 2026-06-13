@@ -45,7 +45,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError("Erro ao recuperar efluentes: {Message}", ex.Message);
-                return BadRequest(new { mensagem = "Erro ao recuperar efluentes", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível recuperar as inspeções. Tente novamente." });
             }
         }
 
@@ -63,7 +63,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError("Erro ao recuperar efluente {Id}: {Message}", id, ex.Message);
-                return BadRequest(new { mensagem = "Erro ao recuperar efluente", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível recuperar a inspeção. Tente novamente." });
             }
         }
 
@@ -89,7 +89,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError("Erro ao criar efluente: {Message}", ex.Message);
-                return BadRequest(new { mensagem = "Erro ao criar efluente", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível criar a inspeção. Tente novamente." });
             }
         }
 
@@ -186,7 +186,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError("Erro ao atualizar efluente {Id}: {Message}", id, ex.Message);
-                return BadRequest(new { mensagem = "Erro ao atualizar efluente", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível atualizar a inspeção. Tente novamente." });
             }
         }
 
@@ -208,7 +208,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError("Erro ao deletar efluente {Id}: {Message}", id, ex.Message);
-                return BadRequest(new { mensagem = "Erro ao deletar efluente", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível excluir a inspeção. Tente novamente." });
             }
         }
 

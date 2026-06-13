@@ -47,7 +47,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"? Error retrieving attachments: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao recuperar anexos", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível recuperar os anexos. Tente novamente." });
             }
         }
 
@@ -75,7 +75,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"? Error retrieving attachment: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao recuperar anexo", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível recuperar o anexo. Tente novamente." });
             }
         }
 
@@ -100,7 +100,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"? Error retrieving attachments by efluente: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao recuperar anexos", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível recuperar os anexos. Tente novamente." });
             }
         }
 
@@ -183,7 +183,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"? Error uploading file: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao enviar arquivo", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível enviar o arquivo. Tente novamente." });
             }
         }
 
@@ -214,7 +214,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"? Error downloading file: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao baixar arquivo", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível baixar o arquivo. Tente novamente." });
             }
         }
 
@@ -243,7 +243,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"? Error deleting attachment: {ex.Message}");
-                return BadRequest(new { mensagem = "Erro ao deletar anexo", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível excluir o anexo. Tente novamente." });
             }
         }
 

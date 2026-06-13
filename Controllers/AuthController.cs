@@ -87,7 +87,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao realizar login");
-                return BadRequest(new { mensagem = "Erro ao realizar login", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Erro ao realizar o login. Tente novamente." });
             }
         }
 
@@ -127,7 +127,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao obter dados do usuario autenticado");
-                return BadRequest(new { mensagem = "Erro ao obter dados do usuario", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Erro ao obter dados do usuário. Tente novamente." });
             }
         }
 
@@ -170,7 +170,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao renovar token");
-                return BadRequest(new { mensagem = "Erro ao renovar token", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Erro ao renovar a sessão. Faça login novamente." });
             }
         }
 
@@ -218,7 +218,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao registrar usuario");
-                return BadRequest(new { mensagem = "Erro ao registrar usuario", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Erro ao registrar o usuário. Tente novamente." });
             }
         }
     }

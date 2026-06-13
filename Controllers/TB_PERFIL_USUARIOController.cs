@@ -37,7 +37,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao listar perfis de usuario");
-                return BadRequest(new { mensagem = "Erro ao recuperar perfis", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível recuperar os perfis. Tente novamente." });
             }
         }
     }

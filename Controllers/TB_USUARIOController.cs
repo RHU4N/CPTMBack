@@ -50,7 +50,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao listar usuarios");
-                return BadRequest(new { mensagem = "Erro ao recuperar usuarios", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível recuperar os usuários. Tente novamente." });
             }
         }
 
@@ -71,7 +71,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao buscar usuario {Id}", id);
-                return BadRequest(new { mensagem = "Erro ao recuperar usuario", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível recuperar o usuário. Tente novamente." });
             }
         }
 
@@ -129,7 +129,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao criar usuario");
-                return BadRequest(new { mensagem = "Erro ao criar usuario", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível criar o usuário. Tente novamente." });
             }
         }
 
@@ -158,7 +158,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao atualizar usuario {Id}", id);
-                return BadRequest(new { mensagem = "Erro ao atualizar usuario", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível atualizar o usuário. Tente novamente." });
             }
         }
 
@@ -193,7 +193,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao trocar login do usuario {Id}", id);
-                return BadRequest(new { mensagem = "Erro ao trocar login", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível trocar o login. Tente novamente." });
             }
         }
 
@@ -225,7 +225,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao desativar usuario {Id}", id);
-                return BadRequest(new { mensagem = "Erro ao desativar usuario", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível desativar o usuário. Tente novamente." });
             }
         }
 
@@ -257,7 +257,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao reativar usuario {Id}", id);
-                return BadRequest(new { mensagem = "Erro ao reativar usuario", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível reativar o usuário. Tente novamente." });
             }
         }
 
@@ -302,7 +302,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao trocar senha");
-                return BadRequest(new { mensagem = "Erro ao trocar senha", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível trocar a senha. Tente novamente." });
             }
         }
 
@@ -331,7 +331,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao redefinir senha do usuario {Id}", id);
-                return BadRequest(new { mensagem = "Erro ao redefinir senha", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível redefinir a senha. Tente novamente." });
             }
         }
 
@@ -372,7 +372,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao atualizar perfil");
-                return BadRequest(new { mensagem = "Erro ao atualizar perfil", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível atualizar o perfil. Tente novamente." });
             }
         }
 

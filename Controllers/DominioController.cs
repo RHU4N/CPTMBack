@@ -255,7 +255,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao criar item de domínio {Tipo}", tipo);
-                return BadRequest(new { mensagem = "Erro ao criar item", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível criar o item de domínio. Tente novamente." });
             }
         }
 
@@ -302,7 +302,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao atualizar item de domínio {Tipo}/{Id}", tipo, id);
-                return BadRequest(new { mensagem = "Erro ao atualizar item", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível atualizar o item de domínio. Tente novamente." });
             }
         }
 
@@ -344,7 +344,7 @@ namespace CPTMBack.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao excluir item de domínio {Tipo}/{Id}", tipo, id);
-                return BadRequest(new { mensagem = "Erro ao excluir item", erro = ex.Message });
+                return StatusCode(500, new { mensagem = "Não foi possível excluir o item de domínio. Tente novamente." });
             }
         }
 
