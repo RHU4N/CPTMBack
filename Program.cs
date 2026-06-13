@@ -64,15 +64,18 @@ builder.Services.AddDbContext<ConnectContext>(options =>
 );
 
 // ===== CORS CONFIGURATION =====
-var allowedOrigins = new[] 
+var defaultOrigins = new[]
 {
     "http://localhost:5173",
     "http://localhost:4173",
     "https://localhost:5173",
     "https://localhost:4173",
     "http://localhost:3000",
-    "http://localhost:4200"
+    "http://localhost:4200",
+    "http://localhost:8080"
 };
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? defaultOrigins;
 
 builder.Services.AddCors(options =>
 {
@@ -185,63 +188,77 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// ===== AUTOMATIC MIGRATIONS & SEED =====
+// ===== AUTOMATIC MIGRATIONS & SEED (with retry) =====
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<ConnectContext>();
     var passwordHasher = services.GetRequiredService<IPasswordHasher<TB_USUARIO>>();
 
-    try
+    const int maxAttempts = 10;
+    const int retryDelaySeconds = 10;
+
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
     {
-        // Run migrations
-        context.Database.Migrate();
-        Console.WriteLine("? Migrations applied successfully");
-
-        // Seed default users if none exist
-        // Nota: context.Any() gera True/False literal no Oracle EF Core 9 (ORA-00904); Count() é seguro
-        if (context.TB_USUARIO.Count() == 0)
+        try
         {
-            // idUsuario = 0: valor sentinela do EF Core para Oracle Identity (deixa o banco gerar o ID)
-            var adminUser = new TB_USUARIO(
-                idUsuario: 0,
-                nmUsuario: "Administrador",
-                dsLogin: "admin",
-                dsSenhaHash: "",
-                idPerfil: 1,
-                dsEmail: "admin@cptm.gov.br",
-                flAtivo: true,
-                flPrimeiroAcesso: false
-            );
-            adminUser.UpdatePassword(passwordHasher.HashPassword(adminUser, "admin123"));
-            context.TB_USUARIO.Add(adminUser);
+            context.Database.Migrate();
+            Console.WriteLine("✅ Migrations applied successfully");
 
-            var operadorUser = new TB_USUARIO(
-                idUsuario: 0,
-                nmUsuario: "Operador Campo",
-                dsLogin: "operador",
-                dsSenhaHash: "",
-                idPerfil: 2,
-                dsEmail: "operador@cptm.gov.br",
-                flAtivo: true,
-                flPrimeiroAcesso: false
-            );
-            operadorUser.UpdatePassword(passwordHasher.HashPassword(operadorUser, "operador123"));
-            context.TB_USUARIO.Add(operadorUser);
+            // Nota: context.Any() gera True/False literal no Oracle EF Core 9 (ORA-00904); Count() é seguro
+            if (context.TB_USUARIO.Count() == 0)
+            {
+                // idUsuario = 0: valor sentinela do EF Core para Oracle Identity (deixa o banco gerar o ID)
+                var adminUser = new TB_USUARIO(
+                    idUsuario: 0,
+                    nmUsuario: "Administrador",
+                    dsLogin: "admin",
+                    dsSenhaHash: "",
+                    idPerfil: 1,
+                    dsEmail: "admin@cptm.gov.br",
+                    flAtivo: true,
+                    flPrimeiroAcesso: false
+                );
+                adminUser.UpdatePassword(passwordHasher.HashPassword(adminUser, "admin123"));
+                context.TB_USUARIO.Add(adminUser);
 
-            context.SaveChanges();
-            Console.WriteLine("✅ Seed users created: admin / operador");
+                var operadorUser = new TB_USUARIO(
+                    idUsuario: 0,
+                    nmUsuario: "Operador Campo",
+                    dsLogin: "operador",
+                    dsSenhaHash: "",
+                    idPerfil: 2,
+                    dsEmail: "operador@cptm.gov.br",
+                    flAtivo: true,
+                    flPrimeiroAcesso: false
+                );
+                operadorUser.UpdatePassword(passwordHasher.HashPassword(operadorUser, "operador123"));
+                context.TB_USUARIO.Add(operadorUser);
+
+                context.SaveChanges();
+                Console.WriteLine("✅ Seed users created: admin / operador");
+            }
+            else
+            {
+                Console.WriteLine($"ℹ️  TB_USUARIO already has {context.TB_USUARIO.Count()} user(s) — seed skipped");
+            }
+            break;
         }
-        else
+        catch (Exception ex)
         {
-            Console.WriteLine($"ℹ️  TB_USUARIO already has {context.TB_USUARIO.Count()} user(s) — seed skipped");
+            if (attempt < maxAttempts)
+            {
+                Console.WriteLine($"⚠️ DB not ready (attempt {attempt}/{maxAttempts}): {ex.Message}");
+                Console.WriteLine($"   Retrying in {retryDelaySeconds}s...");
+                Thread.Sleep(retryDelaySeconds * 1000);
+            }
+            else
+            {
+                Console.WriteLine($"❌ Migration failed after {maxAttempts} attempts: {ex.GetType().Name}: {ex.Message}");
+                if (ex.InnerException != null)
+                    Console.WriteLine($"   Inner: {ex.InnerException.Message}");
+            }
         }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"❌ Error during migration/seed: {ex.GetType().Name}: {ex.Message}");
-        if (ex.InnerException != null)
-            Console.WriteLine($"   Inner: {ex.InnerException.Message}");
     }
 }
 
@@ -282,6 +299,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
+   .AllowAnonymous();
 
 app.Run();
 

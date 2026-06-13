@@ -108,7 +108,8 @@ namespace CPTMBack.Controllers
         /// Upload attachment/image
         /// </summary>
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadAttachment([FromForm] string relObjectId, [FromForm] IFormFile file)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadAttachment([FromForm] string relObjectId, IFormFile file)
         {
             try
             {

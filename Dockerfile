@@ -2,42 +2,26 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# Copy project files
 COPY ["CPTMBack.csproj", "."]
-
-# Restore dependencies
 RUN dotnet restore "CPTMBack.csproj"
 
-# Copy source code
 COPY . .
-
-# Build application
-RUN dotnet build "CPTMBack.csproj" -c Release -o /app/build
-
-# Publish
-FROM build AS publish
 RUN dotnet publish "CPTMBack.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
-# Install Oracle client libraries (optional, if needed for specific features)
-# RUN apt-get update && apt-get install -y libaio1 && rm -rf /var/lib/apt/lists/*
+COPY --from=build /app/publish .
 
-# Copy published app
-COPY --from=publish /app/publish .
+EXPOSE 5000
 
-# Expose ports
-EXPOSE 5000 5001
-
-# Environment variables
 ENV ASPNETCORE_ENVIRONMENT=Production
-ENV ASPNETCORE_URLS=http://+:5000;https://+:5001
+# Limpa o padrão do base image (8080) para evitar o warning "Overriding HTTP_PORTS".
+# A porta é controlada pelo Kestrel programático em Program.cs (ListenAnyIP 5000).
+ENV ASPNETCORE_HTTP_PORTS=""
+ENV DOTNET_RUNNING_IN_CONTAINER=true
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD dotnet /app/CPTMBack.dll --version || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=5 \
+    CMD bash -c 'echo > /dev/tcp/localhost/5000' 2>/dev/null || exit 1
 
-# Start application
 ENTRYPOINT ["dotnet", "CPTMBack.dll"]

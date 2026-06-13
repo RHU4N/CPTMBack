@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <Target Name="KillRunningInstance" BeforeTargets="Build">
+  <Target Name="KillRunningInstance" BeforeTargets="Build" Condition="'$(OS)' == 'Windows_NT'">
     <Exec Command="taskkill /F /IM CPTMBack.exe /T 2&gt;nul &amp; ping -n 4 127.0.0.1 &gt;nul" ContinueOnError="true" />
   </Target>
 

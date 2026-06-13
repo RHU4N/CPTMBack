@@ -1,29 +1,34 @@
-version: '3.9'
+# Carrega automaticamente o arquivo .env no mesmo diretório.
+# Copie .env.example para .env e preencha os valores antes de rodar.
 
 services:
-  # Oracle Database Service
+
+  # ── Oracle Database ──────────────────────────────────────────────
   oracle:
     image: gvenzl/oracle-xe:21-slim
     container_name: cptm_oracle
     ports:
-      - "1521:1521"
+      - "1522:1521"
       - "5500:5500"
     environment:
-      ORACLE_PASSWORD: root
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
       ORACLE_CHARACTERSET: AL32UTF8
     volumes:
       - oracle_data:/opt/oracle/oradata
+      - ./init-oracle.sql:/container-entrypoint-initdb.d/01_create_cptm_user.sql:ro
     networks:
       - cptm_network
+    # Healthcheck verifica que o usuário CPTM existe e consegue fazer login —
+    # garante que o init-oracle.sql rodou antes da API subir.
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/1521' 2>/dev/null && echo OK || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
+      test: ["CMD-SHELL", "echo EXIT | sqlplus -s CPTM/$${ORACLE_PASSWORD}@//localhost:1521/XEPDB1 > /dev/null 2>&1"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 120s
     restart: unless-stopped
 
-  # .NET 9 API Service
+  # ── .NET 9 API ───────────────────────────────────────────────────
   api:
     build:
       context: .
@@ -33,21 +38,27 @@ services:
       - "5000:5000"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_URLS: http://+:5000
       DOTNET_RUNNING_IN_CONTAINER: "true"
 
-      # Oracle — ASP.NET Core maps ConnectionStrings__LocalConnection -> ConnectionStrings:LocalConnection
-      ConnectionStrings__LocalConnection: "Data Source=oracle:1521/XEPDB1;User ID=CPTM;Password=root;"
+      # Conexão Oracle — mapeia para ConnectionStrings:LocalConnection
+      ConnectionStrings__LocalConnection: "Data Source=oracle:1521/XEPDB1;User ID=CPTM;Password=${ORACLE_PASSWORD};"
 
-      # JWT — ASP.NET Core maps Jwt__SecretKey -> Jwt:SecretKey
-      Jwt__SecretKey: "df9e4cccd2384e6a7d095ec9525dd55df3ea15508f7054ecff238a9d28767b26"
+      # JWT — mapeia para Jwt:*
+      Jwt__SecretKey: ${JWT_SECRET_KEY}
       Jwt__Issuer: "cptm-api"
       Jwt__Audience: "cptm-web"
       Jwt__ExpiresMinutes: "120"
 
-      # Logging
+      # CORS — permite frontend Docker na porta 8080
+      Cors__AllowedOrigins__0: "http://localhost:8080"
+      Cors__AllowedOrigins__1: "http://localhost:5173"
+
+      # Logs reduzidos em produção
       Logging__LogLevel__Default: "Warning"
       Logging__LogLevel__Microsoft.AspNetCore: "Warning"
+    volumes:
+      # Persiste chaves de DataProtection entre reinicializações do container
+      - api_keys:/root/.aspnet/DataProtection-Keys
     depends_on:
       oracle:
         condition: service_healthy
@@ -55,21 +66,22 @@ services:
       - cptm_network
     restart: unless-stopped
 
-  # pgAdmin (Optional - for database visualization)
-  # Uncomment if you want a visual database tool
-  # db_admin:
-  #   image: phpmyadmin:latest
-  #   container_name: cptm_db_admin
-  #   ports:
-  #     - "8080:80"
-  #   environment:
-  #     PMA_HOST: oracle
-  #     PMA_USER: CPTM
-  #     PMA_PASSWORD: root
-  #   depends_on:
-  #     - oracle
-  #   networks:
-  #     - cptm_network
+  # ── Vue / Vite / PWA Frontend ────────────────────────────────────
+  frontend:
+    build:
+      context: ../CPTMFront
+      dockerfile: Dockerfile
+      args:
+        # URL que o BROWSER usa para chamar a API (não a rede interna Docker)
+        VITE_API_BASE_URL: http://localhost:5000
+    container_name: cptm_frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    networks:
+      - cptm_network
+    restart: unless-stopped
 
 networks:
   cptm_network:
@@ -77,4 +89,6 @@ networks:
 
 volumes:
   oracle_data:
+    driver: local
+  api_keys:
     driver: local
