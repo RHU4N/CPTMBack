@@ -1,6 +1,6 @@
 # README — Backend CPTM API
 
-**Autores:** Leonardo Torres, Mauricio Maio, Rhuan Santana, Vitor Bastos
+**Autores:** Leonardo Torres, Mauricio Maia, Rhuan Santana, Vitor Bastos
 
 ---
 
